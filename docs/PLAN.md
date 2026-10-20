@@ -34,14 +34,14 @@ Un ingénieur se connecte, crée un dossier (client, adresse, statut), y ajoute 
 
 ### Critères d'acceptation
 
-- [ ] Connexion email + mot de passe avec récupération ; **pas d'auto-inscription** (comptes créés par l'admin, seedé au départ).
-- [ ] Création d'un dossier ; les ingénieurs voient tous les dossiers (RLS active sur toutes les tables).
-- [ ] Ajout d'un équipement manuel avec puissance + **unité** (kW/HP/BTU·h) ; le code convertit avant calcul.
-- [ ] Le code calcule la conso annuelle (puissance × heures × facteur de charge) — aucune valeur numérique issue de l'IA.
-- [ ] Export d'un `.docx` provisoire contenant le dossier et l'équipement ; lien de téléchargement.
-- [ ] Journal immuable enregistre create/update (qui, quand, ancienne/nouvelle valeur) ; UPDATE/DELETE refusés.
-- [ ] Tests à assertions sur la conversion d'unités et le calcul de conso.
-- [ ] **Point de swap** du vrai modèle `.docx` de Luis documenté dans le code.
+- [x] Connexion email + mot de passe avec récupération ; **pas d'auto-inscription** (comptes créés par l'admin, seedé au départ).
+- [x] Création d'un dossier ; les ingénieurs voient tous les dossiers (RLS active sur toutes les tables).
+- [x] Ajout d'un équipement manuel avec puissance + **unité** (kW/HP/BTU·h) ; le code convertit avant calcul.
+- [x] Le code calcule la conso annuelle (puissance × heures × facteur de charge) — aucune valeur numérique issue de l'IA.
+- [x] Export d'un `.docx` provisoire contenant le dossier et l'équipement ; lien de téléchargement.
+- [x] Journal immuable enregistre create/update (qui, quand, ancienne/nouvelle valeur) ; UPDATE/DELETE refusés.
+- [x] Tests à assertions sur la conversion d'unités et le calcul de conso.
+- [x] **Point de swap** du vrai modèle `.docx` de Luis documenté dans le code.
 
 ## Bloquée par
 
