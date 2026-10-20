@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* Tokens DESIGN.md — light-first. Dark mode reporté (hors MVP), mais posés en
+   custom properties pour l'ajouter plus tard sans refonte. */
+@theme {
+  /* Primary — bleu pétrole */
+  --color-primary: #1b4d6b;
+  --color-primary-hover: #16405a;
+  --color-primary-soft: #e7eef3;
+
+  /* Neutres (clair → foncé) */
+  --color-white: #ffffff;
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-n100: #edeff2;
+  --color-border: #dde2e8;
+  --color-n300: #c3cad2;
+  --color-n400: #9aa4af;
+  --color-muted: #6b7682;
+  --color-n600: #4a545e;
+  --color-n700: #2a323a;
+  --color-ink: #141a1f;
+
+  /* Sémantique = états produit */
+  --color-success: #1f7a4d; /* validé / lisible */
+  --color-warning: #9a6410; /* à confirmer / partiel */
+  --color-error: #b42318; /* illisible / à traiter */
+  --color-info: #1b4d6b;
+
+  /* Espacement base 4px */
+  --spacing: 4px;
+
+  /* Radius — bords nets, pastilles seules en full */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Polices (Geist body, JetBrains Mono = valeurs lues machine) */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Chiffres de tableau alignés */
+table {
+  font-variant-numeric: tabular-nums;
+}
