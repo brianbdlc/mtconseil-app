@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MT Conseil — Design System Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* neutres froids */
+  --n0:#FFFFFF; --n50:#F7F8FA; --n100:#EDEFF2; --n200:#DDE2E8; --n300:#C3CAD2;
+  --n400:#9AA4AF; --n500:#6B7682; --n600:#4A545E; --n700:#2A323A; --n900:#141A1F;
+  /* accent — bleu pétrole sérieux */
+  --blue:#1B4D6B; --blue-hover:#16405A; --blue-soft:#E7EEF3; --blue-ring:#1B4D6B40;
+  /* sémantique */
+  --ok:#1F7A4D; --ok-soft:#E4F2EA;
+  --warn:#9A6410; --warn-soft:#FBF0DC;
+  --err:#B42318; --err-soft:#FBE7E4;
+  --info:var(--blue); --info-soft:var(--blue-soft);
+  /* radii — crisp, pas bubble */
+  --r-sm:4px; --r-md:6px; --r-lg:8px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px; --sp-8:32px;
+  --sans:"Geist","Geist Placeholder",system-ui,sans-serif;
+  --display:"General Sans",var(--sans);
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--n50);color:var(--n900);font-family:var(--sans);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1120px;margin:0 auto;padding:48px 24px 96px;}
+h1,h2,h3,h4{font-family:var(--display);font-weight:600;letter-spacing:-0.01em;margin:0;}
+.section{margin-top:64px;}
+.section > h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--n500);font-family:var(--sans);padding-bottom:12px;border-bottom:1px solid var(--n200);margin-bottom:28px;}
+.mono{font-family:var(--mono);}
+.muted{color:var(--n500);}
+.card{background:var(--n0);border:1px solid var(--n200);border-radius:var(--r-lg);}
+
+/* header */
+.phead{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;}
+.phead h1{font-size:30px;}
+.phead .tag{font-family:var(--mono);font-size:12px;color:var(--blue);background:var(--blue-soft);
+  padding:3px 8px;border-radius:var(--r-sm);}
+
+/* --- typo specimen --- */
+.spec{display:grid;gap:28px;}
+.spec .row{display:grid;grid-template-columns:120px 1fr;gap:24px;align-items:baseline;}
+.spec .lbl{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--n400);
+  font-family:var(--sans);padding-top:6px;}
+.disp-xl{font-family:var(--display);font-weight:600;font-size:40px;letter-spacing:-0.02em;line-height:1.05;}
+.disp-l{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:-0.01em;}
+.body-p{font-size:15px;max-width:60ch;color:var(--n700);}
+.data-sample{font-family:var(--mono);font-size:14px;}
+.data-sample b{font-weight:500;}
+table.mini{border-collapse:collapse;font-size:13px;}
+table.mini td,table.mini th{padding:6px 16px 6px 0;text-align:left;}
+table.mini th{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n400);font-weight:500;}
+table.mini td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;padding-right:0;}
+.code-block{font-family:var(--mono);font-size:12.5px;background:var(--n900);color:#D7DEE5;
+  padding:16px 18px;border-radius:var(--r-md);line-height:1.6;overflow-x:auto;}
+.code-block .k{color:#7FB3C8;} .code-block .s{color:#9FCBA6;} .code-block .c{color:#6B7682;}
+
+/* --- palette --- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+.sw{border:1px solid var(--n200);border-radius:var(--r-md);overflow:hidden;background:var(--n0);}
+.sw .chip{height:56px;}
+.sw .meta{padding:8px 10px;font-size:11px;}
+.sw .meta .nm{font-weight:500;}
+.sw .meta .hx{font-family:var(--mono);color:var(--n500);}
+
+.ui-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px;}
+@media(max-width:800px){.ui-grid{grid-template-columns:1fr;}}
+.ui-grid .card{padding:20px;}
+.ui-grid h4{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--n500);
+  font-family:var(--sans);margin-bottom:16px;}
+
+/* buttons */
+.btn{font-family:var(--sans);font-size:14px;font-weight:500;padding:8px 16px;border-radius:var(--r-sm);
+  border:1px solid transparent;cursor:pointer;transition:background .12s ease,border-color .12s ease;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-hover);}
+.btn-secondary{background:var(--n0);color:var(--n700);border-color:var(--n300);}
+.btn-secondary:hover{background:var(--n50);}
+.btn-ghost{background:transparent;color:var(--blue);}
+.btn-ghost:hover{background:var(--blue-soft);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+/* inputs */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--n600);margin-bottom:5px;font-weight:500;}
+.input{width:100%;font-family:var(--sans);font-size:14px;padding:8px 10px;border:1px solid var(--n300);
+  border-radius:var(--r-sm);background:var(--n0);color:var(--n900);}
+.input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-ring);}
+.input.err{border-color:var(--err);}
+.input.mono{font-family:var(--mono);}
+.err-msg{color:var(--err);font-size:12px;margin-top:4px;}
+.focus-demo{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-ring);}
+
+/* alerts */
+.alert{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r-md);font-size:13px;margin-bottom:10px;
+  border:1px solid transparent;align-items:flex-start;}
+.alert .dot{width:6px;height:6px;border-radius:50%;margin-top:7px;flex:none;}
+.alert.ok{background:var(--ok-soft);color:#13593a;} .alert.ok .dot{background:var(--ok);}
+.alert.warn{background:var(--warn-soft);color:#7a4f0c;} .alert.warn .dot{background:var(--warn);}
+.alert.err{background:var(--err-soft);color:#8f1c13;} .alert.err .dot{background:var(--err);}
+.alert.info{background:var(--info-soft);color:#143d55;} .alert.info .dot{background:var(--blue);}
+
+/* state chips — the product's core primitive */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;
+  padding:2px 8px;border-radius:999px;font-family:var(--sans);line-height:1.6;white-space:nowrap;}
+.chip .d{width:6px;height:6px;border-radius:50%;}
+.chip.ok{background:var(--ok-soft);color:#13593a;} .chip.ok .d{background:var(--ok);}
+.chip.warn{background:var(--warn-soft);color:#7a4f0c;} .chip.warn .d{background:var(--warn);}
+.chip.err{background:var(--err-soft);color:#8f1c13;} .chip.err .d{background:var(--err);}
+.chip.neutral{background:var(--n100);color:var(--n600);border:1px dashed var(--n300);} .chip.neutral .d{background:var(--n400);}
+
+.states-legend{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:4px;}
+
+/* --- mockup --- */
+.app{display:grid;grid-template-columns:200px 1fr;border:1px solid var(--n200);border-radius:var(--r-lg);
+  overflow:hidden;background:var(--n0);box-shadow:0 1px 2px rgba(20,26,31,.04);}
+@media(max-width:760px){.app{grid-template-columns:1fr;} .app .side{display:none;}}
+.side{background:var(--n900);color:var(--n300);padding:18px 14px;}
+.side .brand{font-family:var(--display);font-weight:700;color:#fff;font-size:15px;letter-spacing:-0.01em;
+  padding:0 8px 18px;border-bottom:1px solid #26303a;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.side .brand .mk{width:20px;height:20px;border-radius:4px;background:var(--blue);display:inline-block;}
+.side nav a{display:block;padding:8px 10px;border-radius:var(--r-sm);color:var(--n300);
+  text-decoration:none;font-size:13px;margin-bottom:2px;}
+.side nav a.active{background:#1f2932;color:#fff;}
+.side nav a:hover:not(.active){background:#1a232b;}
+.side .navsec{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#5b6670;
+  padding:14px 10px 6px;}
+.main{display:flex;flex-direction:column;min-width:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;
+  border-bottom:1px solid var(--n200);gap:16px;}
+.crumb{font-size:13px;color:var(--n500);}
+.crumb b{color:var(--n900);font-weight:500;}
+.crumb .mono{color:var(--blue);}
+.who{display:flex;align-items:center;gap:10px;}
+.ava{width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:12px;font-weight:600;font-family:var(--display);}
+.content{padding:22px;background:var(--n50);}
+
+.lockbar{display:flex;align-items:center;gap:8px;background:var(--warn-soft);color:#7a4f0c;
+  border:1px solid #eacf93;border-radius:var(--r-md);padding:8px 12px;font-size:13px;margin-bottom:18px;}
+
+.fiche{display:grid;grid-template-columns:260px 1fr;gap:20px;}
+@media(max-width:900px){.fiche{grid-template-columns:1fr;}}
+.photoset{display:grid;gap:8px;}
+.photoset .ph{aspect-ratio:4/3;background:var(--n100);border:1px solid var(--n200);border-radius:var(--r-md);
+  display:flex;align-items:center;justify-content:center;color:var(--n400);font-size:11px;position:relative;}
+.photoset .ph .pill{position:absolute;top:6px;left:6px;font-family:var(--mono);font-size:10px;
+  background:rgba(20,26,31,.72);color:#fff;padding:2px 6px;border-radius:3px;}
+.photoset .thumbs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.photoset .thumbs .ph{aspect-ratio:1;}
+
+.fichecard{padding:20px;}
+.fichecard .fh{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:12px;}
+.fichecard h3{font-size:18px;}
+.fichecard .sub{color:var(--n500);font-size:12.5px;margin-bottom:18px;}
+.frow{display:grid;grid-template-columns:150px 1fr auto;gap:14px;align-items:center;
+  padding:11px 0;border-top:1px solid var(--n100);}
+.frow .fname{font-size:13px;color:var(--n600);}
+.frow .fval{font-family:var(--mono);font-size:14px;color:var(--n900);}
+.frow .fval.empty{color:var(--n400);font-style:normal;}
+.frow .fval.hand{font-family:var(--sans);} /* saisi main = sans, pas mono */
+.src{font-family:var(--sans);font-size:11px;color:var(--blue);text-decoration:none;}
+.src:hover{text-decoration:underline;}
+.formnote{font-size:11px;color:var(--n400);margin-top:3px;font-family:var(--sans);}
+
+/* equipment table */
+.eqtable{width:100%;border-collapse:collapse;font-size:13px;}
+.eqtable th{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--n500);
+  text-align:left;padding:10px 12px;border-bottom:1px solid var(--n200);font-weight:500;}
+.eqtable td{padding:10px 12px;border-bottom:1px solid var(--n100);}
+.eqtable td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;}
+.eqtable tr:hover td{background:var(--n50);}
+.eqtable .name{font-weight:500;}
+.tablewrap{overflow-x:auto;}
+.note{font-size:12px;color:var(--n400);margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="phead">
+    <h1>MT Conseil</h1>
+    <span class="tag">Design System</span>
+    <span class="muted" style="font-size:13px">Audit énergétique — instrument de précision</span>
+  </div>
+
+  <!-- ============ SECTION 1 : TYPO ============ -->
+  <div class="section">
+    <h2>1 · Typographie</h2>
+    <div class="spec">
+      <div class="row">
+        <div class="lbl">Display<br>General Sans</div>
+        <div><div class="disp-xl">Dossier — Produits Andalos</div>
+          <div class="disp-l muted" style="margin-top:8px;">Fiche d'équipement · Unité de toit RTU-3</div></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Corps<br>Geist</div>
+        <div class="body-p">L'unité de toit dessert l'aire de production au niveau 1. Chaque valeur
+          lue sur la plaque reste non validée tant que l'ingénieur ne l'a pas regardée. Un champ
+          incertain reste vide : l'outil ne devine jamais, il propose et attend la confirmation.</div>
+      </div>
+      <div class="row">
+        <div class="lbl">Données<br>Geist · tabular</div>
+        <div>
+          <table class="mini">
+            <tr><th>Poste</th><th>Équipements</th><th>Conso. (kWh/an)</th><th>Part</th></tr>
+            <tr><td>Chauffage</td><td class="num">4</td><td class="num">182 400</td><td class="num">41,2 %</td></tr>
+            <tr><td>Ventilation</td><td class="num">3</td><td class="num">96 750</td><td class="num">21,9 %</td></tr>
+            <tr><td>Éclairage</td><td class="num">1</td><td class="num">61 300</td><td class="num">13,8 %</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lbl">Valeurs lues<br>JetBrains Mono</div>
+        <div class="data-sample">Puissance <b>7,5 kW</b> · Modèle <b>RTU-048-ZH</b> · Année <b>2012</b> · Réf <b>ODS25001</b>
+          <div class="muted" style="font-size:12px;margin-top:6px;">Le mono signale ce qui a été <i>lu</i> — à vérifier — vs. ce qui est rédigé.</div></div>
+      </div>
+      <div class="row">
+        <div class="lbl">Code / calcul</div>
+        <div class="code-block"><span class="c">// code calcule, l'IA ne calcule jamais</span>
+<span class="k">const</span> kWh_an = puissance_kW * heures_an * facteur_charge;
+<span class="c">// 7.5 kW × 3120 h × 0.65 =</span> <span class="s">15 210 kWh/an</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION 2 : COULEUR + UI ============ -->
+  <div class="section">
+    <h2>2 · Couleur &amp; composants</h2>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#141A1F"></div><div class="meta"><div class="nm">Ink</div><div class="hx">#141A1F</div></div></div>
+      <div class="sw"><div class="chip" style="background:#4A545E"></div><div class="meta"><div class="nm">Neutre 600</div><div class="hx">#4A545E</div></div></div>
+      <div class="sw"><div class="chip" style="background:#9AA4AF"></div><div class="meta"><div class="nm">Neutre 400</div><div class="hx">#9AA4AF</div></div></div>
+      <div class="sw"><div class="chip" style="background:#DDE2E8"></div><div class="meta"><div class="nm">Bordure</div><div class="hx">#DDE2E8</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F7F8FA"></div><div class="meta"><div class="nm">Fond</div><div class="hx">#F7F8FA</div></div></div>
+      <div class="sw"><div class="chip" style="background:#1B4D6B"></div><div class="meta"><div class="nm">Bleu pétrole</div><div class="hx">#1B4D6B</div></div></div>
+      <div class="sw"><div class="chip" style="background:#1F7A4D"></div><div class="meta"><div class="nm">Validé / lisible</div><div class="hx">#1F7A4D</div></div></div>
+      <div class="sw"><div class="chip" style="background:#9A6410"></div><div class="meta"><div class="nm">À confirmer / partiel</div><div class="hx">#9A6410</div></div></div>
+      <div class="sw"><div class="chip" style="background:#B42318"></div><div class="meta"><div class="nm">Illisible / erreur</div><div class="hx">#B42318</div></div></div>
+    </div>
+
+    <div class="ui-grid">
+      <div class="card">
+        <h4>Boutons</h4>
+        <div class="btn-row">
+          <button class="btn btn-primary">Valider l'étape</button>
+          <button class="btn btn-secondary">Enregistrer</button>
+          <button class="btn btn-ghost">Voir la source</button>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Champs</h4>
+        <div class="field"><label>Modèle (saisi main)</label><input class="input" value="Carrier 48TC"></div>
+        <div class="field"><label>Puissance — focus</label><input class="input mono focus-demo" value="7,5 kW"></div>
+        <div class="field"><label>Superficie</label><input class="input err" value="—"><div class="err-msg">Requis pour l'intensité énergétique (kWh/m²)</div></div>
+      </div>
+      <div class="card">
+        <h4>Alertes</h4>
+        <div class="alert ok"><span class="dot"></span><div>Fiche validée — 12 champs confirmés par M. Tremblay.</div></div>
+        <div class="alert warn"><span class="dot"></span><div>Écart de 23 % entre conso estimée et factures (seuil 20 %).</div></div>
+        <div class="alert err"><span class="dot"></span><div>2 fiches non validées — soumission bloquée.</div></div>
+        <div class="alert info"><span class="dot"></span><div>Valeurs figées à la soumission ; ce brouillon se recalcule.</div></div>
+      </div>
+      <div class="card">
+        <h4>Pastilles d'état — la primitive du produit</h4>
+        <div class="states-legend" style="margin-bottom:16px">
+          <span class="chip ok"><span class="d"></span>Lisible</span>
+          <span class="chip warn"><span class="d"></span>Partiel</span>
+          <span class="chip err"><span class="d"></span>Illisible</span>
+        </div>
+        <div class="states-legend">
+          <span class="chip ok"><span class="d"></span>Validé</span>
+          <span class="chip warn"><span class="d"></span>À confirmer</span>
+          <span class="chip neutral"><span class="d"></span>Non validé</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION 3 : MOCKUP ============ -->
+  <div class="section">
+    <h2>3 · Écran — Fiche d'équipement</h2>
+    <div class="app">
+      <aside class="side">
+        <div class="brand"><span class="mk"></span>MT Conseil</div>
+        <nav>
+          <a href="#">Tableau de bord</a>
+          <a href="#" class="active">Dossiers</a>
+          <a href="#">Valeurs par défaut</a>
+          <a href="#">Modèle de rapport</a>
+          <div class="navsec">Admin</div>
+          <a href="#">Comptes &amp; droits</a>
+          <a href="#">Journal</a>
+        </nav>
+      </aside>
+      <div class="main">
+        <div class="topbar">
+          <div class="crumb"><b>Produits Andalos</b> · <span class="mono">ODS25001</span> · Brouillon</div>
+          <div class="who"><span class="muted" style="font-size:12px">M. Tremblay</span><div class="ava">MT</div></div>
+        </div>
+        <div class="content">
+          <div class="lockbar">🔒 Marc Dubois modifie cette fiche — ouverture en lecture seule. Le verrou expire dans 4 min.</div>
+
+          <div class="fiche">
+            <div class="photoset">
+              <div class="ph"><span class="pill">plaque</span>IMG_4471</div>
+              <div class="thumbs">
+                <div class="ph"><span class="pill">équip.</span></div>
+                <div class="ph"><span class="pill">empl.</span></div>
+                <div class="ph" style="color:var(--blue)">+ sans photo</div>
+              </div>
+            </div>
+
+            <div class="card fichecard">
+              <div class="fh">
+                <h3>Unité de toit — RTU-3</h3>
+                <span class="chip neutral"><span class="d"></span>Non validée</span>
+              </div>
+              <div class="sub">Dessert l'aire de production · Poste : Chauffage</div>
+
+              <div class="frow"><div class="fname">Marque</div><div class="fval">Carrier</div><span class="chip ok"><span class="d"></span>Lisible</span></div>
+              <div class="frow"><div class="fname">Modèle</div><div class="fval">48TC-D14</div><span class="chip ok"><span class="d"></span>Lisible</span></div>
+              <div class="frow"><div class="fname">Puissance</div><div class="fval">7,5 kW</div><span class="chip warn"><span class="d"></span>Partiel</span></div>
+              <div class="frow"><div class="fname">Année</div><div class="fval empty">—</div><span class="chip err"><span class="d"></span>Illisible</span></div>
+              <div class="frow"><div class="fname">Rendement</div><div class="fval">81 %&nbsp;&nbsp;<a class="src" href="#">↗ fiche fabricant</a></div><span class="chip ok"><span class="d"></span>Source citée</span></div>
+              <div class="frow"><div class="fname">État</div><div class="fval hand">Bon — à remplacer &lt;5 ans</div><span class="chip ok"><span class="d"></span>Saisi main</span></div>
+              <div class="frow"><div class="fname">Heures / an</div><div class="fval hand">3 120 h</div><span class="chip ok"><span class="d"></span>Saisi main</span></div>
+
+              <div class="btn-row" style="margin-top:18px">
+                <button class="btn btn-primary">Valider cette fiche</button>
+                <button class="btn btn-ghost">Marquer un champ à revoir</button>
+                <span class="formnote">Chaque champ doit être regardé — pas de validation en bloc.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:20px;padding:0;overflow:hidden">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--n200);display:flex;justify-content:space-between;align-items:center">
+              <h4 style="font-family:var(--display);font-size:14px;font-weight:600">Équipements du dossier</h4>
+              <span class="muted" style="font-size:12px">11 équipements · 9 validés</span>
+            </div>
+            <div class="tablewrap">
+            <table class="eqtable">
+              <thead><tr><th>Équipement</th><th>Poste</th><th>État</th><th style="text-align:right">Puissance</th><th style="text-align:right">kWh/an</th></tr></thead>
+              <tbody>
+                <tr><td class="name">RTU-1 · Carrier 48TC</td><td>Chauffage</td><td><span class="chip ok"><span class="d"></span>Validé</span></td><td class="num">7,5 kW</td><td class="num">15 210</td></tr>
+                <tr><td class="name">RTU-3 · Carrier 48TC</td><td>Chauffage</td><td><span class="chip neutral"><span class="d"></span>Non validé</span></td><td class="num">7,5 kW</td><td class="num">15 210</td></tr>
+                <tr><td class="name">Ventilateur V-2</td><td>Ventilation</td><td><span class="chip warn"><span class="d"></span>À confirmer</span></td><td class="num">2,2 kW</td><td class="num">8 040</td></tr>
+                <tr><td class="name">Compresseur air</td><td class="muted">— hors catégorie</td><td><span class="chip err"><span class="d"></span>À traiter</span></td><td class="num">—</td><td class="num">—</td></tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+          <div class="note">Un équipement hors catégorie est signalé, jamais deviné — l'ingénieur le traite à la main.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
