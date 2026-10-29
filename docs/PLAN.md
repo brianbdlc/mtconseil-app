@@ -82,11 +82,11 @@ La table des valeurs par défaut (facteur de charge par type, rattaché à un po
 
 ### Critères d'acceptation
 
-- [ ] CRUD table des valeurs par défaut (10-15 types), ouvert à tout ingénieur (journalisé) ; chaque modification la repasse à « à confirmer ».
-- [ ] Confirmation reportée à l'approbation (Phase 5) ; surcharge au cas par cas avec raison écrite obligatoire (tracée au journal). `parametres` + `profiles.role/actif` restent admin-only (RLS).
-- [ ] Chaque type rattaché à un poste ; équipement hors catégorie **signalé** (rouge « à traiter »), exclu du détail par poste mais compté au total.
-- [ ] Formulaire de description du bâtiment (superficie/unité, année avertie hors [1800, année courante], usage, gaz).
-- [ ] Code = **source unique** du calcul (liste, fiche ET export .docx recalculent) : bilan par poste + kWh/m² sur le total équipements (toutes énergies) + équivalent énergétique du gaz à part ; tests à assertions.
+- [x] CRUD table des valeurs par défaut (14 types seedés), ouvert à tout ingénieur (journalisé) ; chaque modification la repasse à « à confirmer ».
+- [x] Confirmation reportée à l'approbation (Phase 5) ; surcharge au cas par cas avec raison écrite obligatoire (tracée au journal). `parametres` + `profiles.role/actif` restent admin-only (RLS).
+- [x] Chaque type rattaché à un poste ; équipement hors catégorie **signalé** (rouge « à traiter »), exclu du détail par poste mais compté au total.
+- [x] Formulaire de description du bâtiment (superficie/unité, année avertie hors [1800, année courante], usage, gaz).
+- [x] Code = **source unique** du calcul (liste, fiche ET export .docx recalculent) : bilan par poste + kWh/m² sur le total équipements (toutes énergies) + équivalent énergétique du gaz à part ; tests à assertions.
 
 ## Bloquée par
 
