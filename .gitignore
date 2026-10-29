@@ -40,7 +40,9 @@ next-env.d.ts
 # editor / tooling
 .claude/
 .playwright/
+.playwright-cli/
 
 # supabase
 .branches
 .temp
+test-photos/

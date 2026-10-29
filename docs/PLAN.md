@@ -59,12 +59,12 @@ L'ingénieur téléverse en lot ses photos de chantier (30-60), les HEIC sont co
 
 ### Critères d'acceptation
 
-- [ ] Upload en lot, conversion HEIC, reprise d'un upload interrompu.
-- [ ] Groupes proposés par heure de prise de vue, secours par nom de fichier ; confirmation par groupe.
-- [ ] Assignation à un équipement + renommage dans l'app ; création d'équipement sans photo.
-- [ ] Claude lit la plaque et propose les valeurs ; chaque champ `validated=false`, confiance (lisible/partiel/illisible), unité conservée, champ incertain = vide.
-- [ ] Vérifs de plausibilité par le code ; rendement avec lien cliquable vers la fiche fabricant.
-- [ ] Validation obligatoire champ par champ (pas de validation en bloc).
+- [x] Upload en lot, conversion HEIC, reprise d'un upload interrompu.
+- [x] Groupes proposés par heure de prise de vue, secours par nom de fichier ; confirmation par groupe.
+- [x] Assignation à un équipement + renommage dans l'app ; création d'équipement sans photo.
+- [x] Claude lit la plaque et propose les valeurs ; chaque champ `validated=false`, confiance (lisible/partiel/illisible), unité conservée, champ incertain = vide.
+- [x] Vérifs de plausibilité par le code ; rendement avec lien cliquable vers la fiche fabricant.
+- [x] Validation obligatoire champ par champ (pas de validation en bloc).
 
 ## Bloquée par
 

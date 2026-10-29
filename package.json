@@ -9,9 +9,12 @@
     "test": "node --test --experimental-strip-types"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.136.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "docxtemplater": "^3.71.1",
+    "exifreader": "^4.52.0",
+    "heic-to": "^1.6.7",
     "next": "16.4.2",
     "pizzip": "^3.3.0",
     "react": "19.3.0",
