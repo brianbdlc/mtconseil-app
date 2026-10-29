@@ -58,6 +58,9 @@ export default async function DossierPage({
           </div>
           <div className="flex items-center gap-3">
             <StatusChip status={dossier.statut} />
+            <Link href={`/dossiers/${id}/photos`}>
+              <Button variant="secondary">Photos</Button>
+            </Link>
             <a href={`/dossiers/${id}/export`}>
               <Button variant="secondary">Exporter .docx</Button>
             </a>

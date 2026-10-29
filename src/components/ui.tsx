@@ -58,6 +58,12 @@ const CHIP: Record<string, { label: string; cls: string }> = {
     label: "À corriger",
     cls: "bg-[#fbeeec] text-error border-error",
   },
+  // États de champ IA (Phase 2) : confiance de lecture + statut de validation.
+  lisible: { label: "Lisible", cls: "bg-[#e8f3ec] text-success border-success" },
+  partiel: { label: "Partiel", cls: "bg-[#fdf3e6] text-[#9a6700] border-[#d9a441]" },
+  illisible: { label: "Illisible", cls: "bg-[#fbeeec] text-error border-error" },
+  non_valide: { label: "À valider", cls: "bg-n100 text-muted border-border" },
+  valide: { label: "Validé", cls: "bg-[#e8f3ec] text-success border-success" },
 };
 
 export function StatusChip({ status }: { status: string }) {
