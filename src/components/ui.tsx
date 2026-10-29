@@ -64,6 +64,9 @@ const CHIP: Record<string, { label: string; cls: string }> = {
   illisible: { label: "Illisible", cls: "bg-[#fbeeec] text-error border-error" },
   non_valide: { label: "À valider", cls: "bg-n100 text-muted border-border" },
   valide: { label: "Validé", cls: "bg-[#e8f3ec] text-success border-success" },
+  // Phase 3 (DESIGN.md:31-32) : ambre "à confirmer", rouge "à traiter".
+  a_confirmer: { label: "À confirmer", cls: "bg-[#fdf3e6] text-[#9A6410] border-[#d9a441]" },
+  hors_categorie: { label: "À traiter", cls: "bg-[#fbeeec] text-error border-error" },
 };
 
 export function StatusChip({ status }: { status: string }) {

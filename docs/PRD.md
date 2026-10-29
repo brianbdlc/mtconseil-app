@@ -42,9 +42,9 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 - **US-21** — En tant qu'ingénieur, je veux devoir regarder chaque champ avant de le valider (pas de validation en bloc), afin de ne pas valider trop vite des chiffres qui engagent ma responsabilité.
 
 ### Table des valeurs par défaut et calcul de consommation
-- **US-22** — En tant qu'admin (Luis), je veux gérer la table des valeurs par défaut (facteur de charge par type d'équipement), afin que les calculs s'appuient sur des valeurs standard.
-- **US-23** — En tant qu'ingénieur, je veux voir chaque valeur par défaut marquée « à confirmer » tant que Luis ne l'a pas confirmée, afin de savoir ce qui n'est pas encore fiable.
-- **US-24** — En tant qu'admin (Luis), je veux confirmer les valeurs par défaut, afin de lever la mention « à confirmer ».
+- **US-22** — En tant qu'ingénieur, je veux gérer (créer/éditer) la table des valeurs par défaut (facteur de charge par type d'équipement), afin que les calculs s'appuient sur des valeurs standard. *Cadrage : table éditable par tous les ingénieurs et journalisée ; toute modification repasse la ligne à « à confirmer ».*
+- **US-23** — En tant qu'ingénieur, je veux voir chaque valeur par défaut marquée « à confirmer » tant qu'elle n'a pas été confirmée avec Luis, afin de savoir ce qui n'est pas encore fiable.
+- **US-24** — En tant qu'admin (Luis), je veux confirmer les valeurs par défaut, afin de lever la mention « à confirmer ». *Cadrage : la confirmation est reportée à l'approbation du rapport (Phase 5) — pas de bouton « confirmer » en Phase 3.*
 - **US-25** — En tant qu'ingénieur, je veux pouvoir modifier une valeur par défaut pour un cas précis en indiquant une raison écrite, afin que tout ajustement reste justifié et traçable.
 - **US-26** — En tant qu'ingénieur, je veux que le code calcule la consommation annuelle (puissance × heures × facteur de charge), afin d'obtenir les kWh/an sans calcul manuel.
 - **US-27** — En tant qu'ingénieur, je veux qu'un équipement n'entrant dans aucune catégorie soit signalé (pas deviné), afin de le traiter à la main.
@@ -53,7 +53,7 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 - **US-30** — En tant qu'ingénieur, je veux que les valeurs utilisées soient figées à la soumission du rapport — un brouillon se recalcule — afin qu'un changement futur de la table ne modifie jamais un rapport soumis.
 
 ### Description du bâtiment
-- **US-31** — En tant qu'ingénieur, je veux remplir un formulaire de description du bâtiment (superficie, année de construction, usage, etc.), afin d'alimenter l'intensité énergétique (kWh/m²) et la description générale du rapport.
+- **US-31** — En tant qu'ingénieur, je veux remplir un formulaire de description du bâtiment (superficie **brute de plancher — à confirmer** + unité m²/pi², année de construction, usage, etc.), afin d'alimenter l'intensité énergétique (kWh/m²) et la description générale du rapport. *Le facteur de conversion du gaz est un paramètre admin « à confirmer » ; le gaz saisi est affiché à part, jamais additionné au total équipements.*
 
 ### Analyse des factures *(à préciser après 3-4 vraies factures)*
 - **US-32** — En tant qu'ingénieur, je veux téléverser les factures d'énergie (Hydro-Québec, Énergir, etc.) sur plusieurs périodes, l'IA proposant les chiffres, le code les vérifiant (somme des périodes, dates qui se suivent) et moi les confirmant, avec saisie manuelle si l'extraction échoue, afin d'obtenir des chiffres fiables. *(Histoire à préciser une fois de vraies factures observées.)*
