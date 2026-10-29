@@ -55,3 +55,5 @@
 | 2026-10-19 | Mono réservé aux valeurs lues par l'IA | Rendre visible dans la typo la règle fondatrice « l'IA lit, ne devine pas » : mono = lecture machine à vérifier, sans = saisi/rédigé par l'humain. |
 | 2026-10-19 | Système d'états = primitive de design de 1er plan | La promesse de confiance du produit (lisible/partiel/illisible, non validé/validé/à confirmer) doit être visible et cohérente partout. |
 | 2026-10-19 | Light-first, dark mode reporté | L'écran reflète la sortie Word (document) ; dark mode possible plus tard via tokens, hors MVP. |
+| 2026-10-29 | Chips `a_confirmer` (ambre `#9A6410`) et `hors_categorie` (rouge « À traiter », tokens error) implémentés (Phase 3) | Conformes à la spec États de champ : rendre visible ce qui n'est pas encore fiable / ce qui doit être traité à la main. |
+| 2026-10-29 | Facteur de charge (humain) en **sans + tabular-nums**, pas en mono | Le mono est réservé aux valeurs **lues par l'IA** ; un facteur saisi/choisi par l'humain reste en sans, aligné via tabular-nums comme les autres chiffres de tableau. |

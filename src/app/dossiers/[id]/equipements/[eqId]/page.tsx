@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateEquipement, lirePlaqueAction, validerChamp } from "../../../actions";
-import { UNITES } from "@/lib/calc";
+import { UNITES, libellePoste, ligneEquipement } from "@/lib/calc";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
 
 // Chip d'état d'un champ IA : validé > confiance de lecture > à valider.
@@ -21,10 +21,20 @@ export default async function EquipementPage({
 
   const { data: eq } = await supabase
     .from("equipements")
-    .select("*")
+    .select("*, type:valeurs_defaut(poste, confirme, facteur_charge)")
     .eq("id", eqId)
     .single();
   if (!eq) notFound();
+
+  // Liste des types pour le sélecteur (poste dérivé + facteur par défaut).
+  const { data: types } = await supabase
+    .from("valeurs_defaut")
+    .select("id, type, poste, facteur_charge")
+    .order("type", { ascending: true });
+
+  // Conso calculée par le CODE (source unique) à partir du type joint + surcharge éventuelle.
+  const ligne = ligneEquipement(eq);
+  const facteurTypeDefaut = eq.type?.facteur_charge ?? null;
 
   const { data: photos } = await supabase
     .from("photos")
@@ -183,6 +193,34 @@ export default async function EquipementPage({
           </div>
         </div>
 
+        {/* Type (poste dérivé) + facteur par défaut. Vide = hors catégorie. */}
+        <div className="border border-border rounded-md bg-bg px-4 py-3 space-y-3">
+          <div>
+            <Label htmlFor="type_id">Type d&apos;équipement</Label>
+            <Select id="type_id" name="type_id" defaultValue={eq.type_id ?? ""}>
+              <option value="">— Hors catégorie —</option>
+              {(types ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.type} ({libellePoste(t.poste)})
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted mt-1">
+              {eq.type_id
+                ? `Poste : ${libellePoste(eq.type?.poste ?? "")} · facteur par défaut : ${
+                    facteurTypeDefaut ?? "manquant"
+                  }`
+                : "Aucun type : exclu du détail par poste, mais compté au total."}
+            </p>
+          </div>
+          {eq.facteur_charge !== null && (
+            <p className="text-xs text-[#9A6410]">
+              Surcharge active : le facteur par défaut du type est remplacé. Pour adopter le facteur
+              du type, videz la surcharge ci-dessous ; pour le conserver, indiquez une raison.
+            </p>
+          )}
+        </div>
+
         {/* Entrées de calcul (code) */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -190,25 +228,28 @@ export default async function EquipementPage({
             <Input
               id="heures_par_an"
               name="heures_par_an"
-              type="number"
-              step="any"
-              className="font-mono"
+              className="tabular-nums"
               defaultValue={eq.heures_par_an ?? ""}
             />
           </div>
           <div>
-            <Label htmlFor="facteur_charge">Facteur de charge</Label>
+            <Label htmlFor="facteur_charge">Facteur de charge (surcharge)</Label>
             <Input
               id="facteur_charge"
               name="facteur_charge"
-              type="number"
-              step="any"
-              min="0"
-              max="1"
-              className="font-mono"
+              className="tabular-nums"
+              placeholder={facteurTypeDefaut !== null ? String(facteurTypeDefaut) : "0 – 1"}
               defaultValue={eq.facteur_charge ?? ""}
             />
           </div>
+        </div>
+        <div>
+          <Label htmlFor="facteur_charge_raison">Raison de la surcharge (requise si surcharge d&apos;un type)</Label>
+          <Input
+            id="facteur_charge_raison"
+            name="facteur_charge_raison"
+            defaultValue={eq.facteur_charge_raison ?? ""}
+          />
         </div>
 
         {/* Champs saisis par l'ingénieur (US-19, US-20) */}
@@ -264,11 +305,14 @@ export default async function EquipementPage({
 
         <div className="border border-border rounded-md bg-bg px-4 py-3">
           <div className="text-xs text-muted">Consommation annuelle (calculée par le code)</div>
-          <div className="font-mono text-lg text-ink">
-            {eq.conso_kwh_an !== null
-              ? `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 0 }).format(eq.conso_kwh_an)} kWh/an`
+          <div className="text-lg text-ink tabular-nums">
+            {ligne.conso !== null
+              ? `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 0 }).format(ligne.conso)} kWh/an`
               : "— (champ incomplet)"}
           </div>
+          {ligne.reposeSurValeurAConfirmer && (
+            <p className="text-xs text-[#9A6410] mt-1">Basé sur une valeur à confirmer (facteur du type).</p>
+          )}
         </div>
 
         <Button type="submit">Enregistrer</Button>

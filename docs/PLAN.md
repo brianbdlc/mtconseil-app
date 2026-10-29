@@ -12,7 +12,7 @@ Décisions durables qui s'appliquent à toutes les phases :
 - **Hébergement** : Vercel + Supabase région **Canada (ca-central)**. Ne règle pas la Loi 25 côté Anthropic (photos/factures sortent du Québec) → contrainte opérationnelle, pas technique.
 - **Règle fondatrice** : l'IA ne calcule ni ne devine. **Le code calcule** (module TS pur), l'IA **lit/propose** sous validation, l'ingénieur **confirme**. Un champ incertain reste **vide (`null`)**.
 - **« Quatre acteurs »** = patron de **flux de données**, pas d'agents autonomes : drapeaux `validé` en base + appels Claude ciblés (jobs Trigger.dev) + code d'assemblage. L'assembleur ne lit **que du validé** (requête filtrée).
-- **Routes** (App Router) : `/login`, `/dossiers`, `/dossiers/[id]`, `/dossiers/[id]/equipements/[eqId]`, `/dossiers/[id]/factures`, `/dossiers/[id]/mesures`, `/dossiers/[id]/rapport`, `/admin/valeurs-defaut`, `/admin/comptes`, `/admin/modele`.
+- **Routes** (App Router) : `/login`, `/dossiers`, `/dossiers/[id]`, `/dossiers/[id]/equipements/[eqId]`, `/dossiers/[id]/factures`, `/dossiers/[id]/mesures`, `/dossiers/[id]/rapport`, `/valeurs-defaut` (tous les ingénieurs), `/admin/parametres` (admin), `/admin/comptes`, `/admin/modele`.
 - **Modèles clés** (tables Postgres) : `profiles` (rôle `admin|engineer`, actif/inactif), `dossiers` (client, adresse, statut, ingénieur responsable), `equipements` (champs + unité d'origine + `validated` + confiance par champ), `photos`, `photo_groupes`, `default_values` (type → facteur de charge + poste de consommation + `confirmé`), `factures`, `mesures`, `rapports` (versions + snapshot JSON gelé), `report_templates` (textes fixes + numéro de version), `audit_log` (immuable, append-only).
 - **Validation** : par champ, jamais en bloc. Confiance en 3 états (`lisible | partiel | illisible`) + vérifs de plausibilité du code. Unité conservée, convertie avant tout calcul.
 - **Permissions** : RLS **dès la première migration**. Modèle 2 rôles au départ (`admin|engineer`, tous voient tous les dossiers) ; droits fins par personne en Phase 8. Réservés admin dès qu'ils existent : approbation, table des valeurs par défaut, seuil de cohérence, textes fixes, suppression dossier, gestion des comptes, forcer un verrou, autoriser une soumission incomplète.
@@ -78,15 +78,15 @@ L'ingénieur téléverse en lot ses photos de chantier (30-60), les HEIC sont co
 
 ### Ce qu'on livre
 
-L'admin gère la table des valeurs par défaut (facteur de charge par type, rattaché à un poste de consommation) ; chaque valeur est « à confirmer » tant que Luis ne l'a pas confirmée ; un ingénieur peut la surcharger au cas par cas avec une raison écrite tracée. Un formulaire décrit le bâtiment (superficie, année, usage). Le code calcule le bilan par poste et l'intensité énergétique (kWh/m²), convertit le gaz Énergir en équivalent énergétique, et signale tout équipement hors catégorie (jamais deviné).
+La table des valeurs par défaut (facteur de charge par type, rattaché à un poste de consommation) est **éditable par tous les ingénieurs** et journalisée ; **toute modification repasse la ligne à « à confirmer »** et la confirmation est **reportée à l'approbation du rapport (Phase 5)** — pas de bouton « confirmer » en Phase 3. Un équipement peut surcharger le facteur de son type au cas par cas avec une raison écrite tracée. Seuls restent admin-only : le facteur de conversion du gaz (`parametres`) et `profiles.role/actif`. Un formulaire décrit le bâtiment (superficie + unité m²/pi², année, usage, quantité de gaz). Le code calcule le bilan par poste et l'intensité énergétique (kWh/m²), convertit le gaz Énergir en équivalent énergétique **affiché à part et jamais additionné au total**, et signale tout équipement hors catégorie (jamais deviné).
 
 ### Critères d'acceptation
 
-- [ ] CRUD table des valeurs par défaut (10-15 types) ; marque « à confirmer » tant que non confirmée par l'admin.
-- [ ] Confirmation réservée à l'admin ; surcharge au cas par cas avec raison écrite (tracée au journal).
-- [ ] Chaque type rattaché à un poste ; équipement hors catégorie **signalé**, pas deviné.
-- [ ] Formulaire de description du bâtiment.
-- [ ] Code calcule bilan par poste + kWh/m² + équivalent énergétique du gaz ; tests à assertions.
+- [ ] CRUD table des valeurs par défaut (10-15 types), ouvert à tout ingénieur (journalisé) ; chaque modification la repasse à « à confirmer ».
+- [ ] Confirmation reportée à l'approbation (Phase 5) ; surcharge au cas par cas avec raison écrite obligatoire (tracée au journal). `parametres` + `profiles.role/actif` restent admin-only (RLS).
+- [ ] Chaque type rattaché à un poste ; équipement hors catégorie **signalé** (rouge « à traiter »), exclu du détail par poste mais compté au total.
+- [ ] Formulaire de description du bâtiment (superficie/unité, année avertie hors [1800, année courante], usage, gaz).
+- [ ] Code = **source unique** du calcul (liste, fiche ET export .docx recalculent) : bilan par poste + kWh/m² sur le total équipements (toutes énergies) + équivalent énergétique du gaz à part ; tests à assertions.
 
 ## Bloquée par
 
@@ -109,6 +109,10 @@ L'assembleur relit le dossier : il signale toute fiche non validée ou donnée m
 - [ ] Contrôle de cohérence : écart > seuil (défaut 20 %, réglable par l'admin) → alerte ; sans factures → « non disponible ».
 - [ ] Sommaire exécutif + tableau résumé générés.
 
+> **Report Phase 3 → 4** :
+> - Un équipement **sans type** ou un type **sans facteur** = **donnée manquante** à traiter par le contrôle de complétude (en Phase 3 ils sont seulement signalés / exclus du calcul).
+> - Le contrôle de cohérence doit comparer des totaux **de même nature** : le total équipements est **toutes énergies** (les équipements au gaz convertis en kWh y sont déjà), à opposer aux factures **élec + gaz** — pas à l'électricité seule. Décision à prendre avec Luis : les équipements au gaz figurent-ils bien dans l'inventaire, et faut-il un champ « énergie » par type pour ventiler élec/gaz proprement ?
+
 ## Bloquée par
 
 - Phase 2 (fiches validées), Phase 3 (bilan).
@@ -130,6 +134,10 @@ Le rapport avance dans les statuts Brouillon → Soumis → Approuvé → Export
 - [ ] Approbation réservée à l'admin ; Luis peut approuver ses propres rapports (tracé).
 - [ ] Modification après approbation → retour à « Soumis » ; export bloqué hors « Approuvé ».
 - [ ] Chaque export conservé ; modification ultérieure = nouvelle version.
+
+> **Report Phase 3 → 5** :
+> - Le trigger de reset `vd_reset_confirme` ne vise aujourd'hui que l'écriture **connectée non-admin**. En Phase 5, il devra aussi **remettre `confirme=false` dès que `facteur_charge` ou `poste` change, même par un admin** (une valeur confirmée ne doit pas rester confirmée après modification de sa substance).
+> - Décider **comment l'approbation pose le drapeau** `confirme=true` (via le journal / un bloc « À réviser ») puisqu'il n'y a pas de bouton « confirmer » en Phase 3.
 
 ## Bloquée par
 

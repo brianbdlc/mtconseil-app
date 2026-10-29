@@ -3,6 +3,9 @@ import path from "node:path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { createClient } from "@/lib/supabase/server";
+import { ligneEquipement } from "@/lib/calc";
+
+type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
 
 // ponytail: export docx SYNCHRONE (Phase 1). SWAP Phase 2 → job Trigger.dev + dépôt Storage
 // + versionnage (US-48 en Phase 5). SWAP MODÈLE → remplacer src/templates/rapport-provisoire.docx
@@ -29,13 +32,25 @@ export async function GET(
     .single();
   if (!dossier) return new Response("Dossier introuvable", { status: 404 });
 
+  // Join type + calcul à la lecture (source unique = calc.ts). conso_kwh_an (cache) non relu.
   const { data: equipements } = await supabase
     .from("equipements")
     .select(
-      "nom, puissance_valeur, puissance_unite, heures_par_an, facteur_charge, conso_kwh_an",
+      "nom, puissance_valeur, puissance_unite, heures_par_an, facteur_charge, type_id, type:valeurs_defaut(poste, confirme, facteur_charge)",
     )
     .eq("dossier_id", id)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .returns<
+      {
+        nom: string | null;
+        puissance_valeur: number | null;
+        puissance_unite: string | null;
+        heures_par_an: number | null;
+        facteur_charge: number | null;
+        type_id: string | null;
+        type: TypeJoint;
+      }[]
+    >();
 
   const templatePath = path.join(
     process.cwd(),
@@ -55,7 +70,7 @@ export async function GET(
       nom: e.nom ?? "",
       puissance_valeur: e.puissance_valeur ?? "",
       puissance_unite: e.puissance_unite ?? "",
-      conso_kwh_an: fmt(e.conso_kwh_an),
+      conso_kwh_an: fmt(ligneEquipement(e).conso),
     })),
   });
 
