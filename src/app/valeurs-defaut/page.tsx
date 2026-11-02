@@ -3,6 +3,7 @@ import {
   createValeurDefaut,
   updateValeurDefaut,
   deleteValeurDefaut,
+  confirmerValeurDefaut,
 } from "@/app/dossiers/actions";
 import { POSTES } from "@/lib/calc";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
@@ -24,6 +25,8 @@ export default async function ValeursDefautPage() {
     .order("type", { ascending: true })
     .returns<ValeurDefaut[]>();
 
+  const { data: estAdmin } = await supabase.rpc("is_admin");
+
   // Compte des référents (pour désactiver la suppression). FK restrict = vrai garde-fou.
   const { data: refs } = await supabase.from("equipements").select("type_id");
   const refCount = new Map<string, number>();
@@ -42,8 +45,9 @@ export default async function ValeursDefautPage() {
       <div>
         <h1 className="text-[22px] font-semibold text-ink">Valeurs par défaut</h1>
         <p className="text-sm text-muted mt-1">
-          Table éditable par tous les ingénieurs. Toute modification repasse la ligne à « à
-          confirmer » (confirmation avec Luis reportée à l&apos;approbation du rapport).
+          Table éditable par tous les ingénieurs. Toute modification du facteur ou du poste repasse la
+          ligne à « à confirmer » — confirmée à l&apos;approbation d&apos;un rapport ou ici par
+          l&apos;admin.
         </p>
       </div>
 
@@ -110,7 +114,21 @@ export default async function ValeursDefautPage() {
                     </form>
                   </td>
                   <td className="px-4 py-2">
-                    {!v.confirme && <StatusChip status="a_confirmer" />}
+                    {v.confirme ? (
+                      <StatusChip status="valide" />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <StatusChip status="a_confirmer" />
+                        {estAdmin && (
+                          <form action={confirmerValeurDefaut}>
+                            <input type="hidden" name="id" value={v.id} />
+                            <Button type="submit" variant="secondary">
+                              Confirmer
+                            </Button>
+                          </form>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-right">
                     {n > 0 ? (

@@ -108,9 +108,15 @@ export default async function DossierPage({
             <Link href={`/dossiers/${id}/rapport`}>
               <Button variant="secondary">Rapport</Button>
             </Link>
-            <a href={`/dossiers/${id}/export`}>
-              <Button variant="secondary">Exporter .docx</Button>
-            </a>
+            {["approuve", "exporte"].includes(dossier.statut) ? (
+              <a href={`/dossiers/${id}/export`}>
+                <Button variant="secondary">Exporter .docx</Button>
+              </a>
+            ) : (
+              <Button variant="secondary" disabled title="Disponible une fois le rapport approuvé">
+                Exporter .docx
+              </Button>
+            )}
           </div>
         </div>
       </div>

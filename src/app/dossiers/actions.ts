@@ -9,6 +9,8 @@ import {
   normaliserSurcharge,
 } from "@/lib/calc";
 import { controleCompletude, type EquipementAssembleur } from "@/lib/assembleur";
+import { construireSnapshot } from "@/lib/rapport";
+import { SECTIONS } from "@/lib/statuts";
 import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
 
@@ -323,6 +325,28 @@ export async function updateValeurDefaut(formData: FormData) {
   redirect("/valeurs-defaut");
 }
 
+/**
+ * Confirme une valeur par défaut directement (US-24), réservé à l'admin. L'autre chemin de
+ * confirmation est l'approbation d'un rapport (approuver_dossier). Journalisé par log_valeurs_defaut.
+ */
+export async function confirmerValeurDefaut(formData: FormData) {
+  const id = String(formData.get("id"));
+  const supabase = await createClient();
+
+  const { data: estAdmin } = await supabase.rpc("is_admin");
+  if (!estAdmin) throw new Error("Confirmation réservée aux administrateurs.");
+
+  const { data: user } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("valeurs_defaut")
+    .update({ confirme: true, confirme_par: user.user?.id ?? null, confirme_le: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/valeurs-defaut");
+  redirect("/valeurs-defaut");
+}
+
 export async function deleteValeurDefaut(formData: FormData) {
   const id = String(formData.get("id"));
   const supabase = await createClient();
@@ -406,9 +430,10 @@ export async function updateBatiment(formData: FormData) {
   redirect(`/dossiers/${dossierId}`);
 }
 
-// ───────────────────────── Soumission (Phase 4, assembleur) ─────────────────────────
-// Soumission minimale brouillon → soumis, gardée par la complétude (controleCompletude).
-// Gel/snapshot, approbation, versions, verrouillage export = Phase 5.
+// ───────────────────────── Soumission + gel du snapshot (Phase 5) ─────────────────────────
+// Soumission gardée par la complétude (controleCompletude). À la soumission, on GÈLE le snapshot
+// (US-44) : le rapport affiché en soumis/approuve/exporte vient de là, plus du calcul vivant.
+// Gère brouillon→soumis, a_corriger→soumis et soumis→soumis (re-soumission après retour auto).
 
 export async function soumettreDossier(formData: FormData) {
   const dossierId = String(formData.get("dossier_id"));
@@ -417,7 +442,9 @@ export async function soumettreDossier(formData: FormData) {
 
   const { data: dossier, error: eDossier } = await supabase
     .from("dossiers")
-    .select("superficie_valeur, superficie_unite")
+    .select(
+      "client, adresse, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite, gaz_periode",
+    )
     .eq("id", dossierId)
     .single();
   if (eDossier) throw new Error(eDossier.message);
@@ -431,9 +458,26 @@ export async function soumettreDossier(formData: FormData) {
     .eq("dossier_id", dossierId)
     .returns<EquipementAssembleur[]>();
 
-  const completude = controleCompletude(equipements ?? [], dossier);
+  const { data: paramGaz } = await supabase
+    .from("parametres")
+    .select("valeur")
+    .eq("cle", "facteur_conversion_gaz")
+    .maybeSingle();
 
-  const update: Record<string, unknown> = { statut: "soumis" };
+  const eqs = equipements ?? [];
+  const completude = controleCompletude(eqs, dossier);
+
+  const { data: user } = await supabase.auth.getUser();
+  const snapshot = construireSnapshot(dossier, eqs, { facteurGaz: paramGaz?.valeur ?? null });
+
+  const update: Record<string, unknown> = {
+    statut: "soumis",
+    rapport_snapshot: snapshot,
+    snapshot_perime: false,
+    soumis_par: user.user?.id ?? null,
+    soumis_le: new Date().toISOString(),
+    commentaires: null, // re-soumission : efface le fil de corrections précédent
+  };
 
   if (completude.bloquant) {
     // Incomplet : réservé à un admin, avec une raison écrite (tracée par log_change).
@@ -444,12 +488,59 @@ export async function soumettreDossier(formData: FormData) {
     if (!raison) {
       throw new Error("Une soumission incomplète exige une raison écrite.");
     }
-    const { data: user } = await supabase.auth.getUser();
     update.soumission_incomplete_raison = raison;
     update.soumission_incomplete_par = user.user?.id ?? null;
   }
 
   const { error } = await supabase.from("dossiers").update(update).eq("id", dossierId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}`);
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+  redirect(`/dossiers/${dossierId}/rapport`);
+}
+
+// ───────────────────────── Approbation / renvoi (Phase 5, US-45→47) ─────────────────────────
+
+/**
+ * Approbation atomique via RPC (security definer). Confirme en même temps les valeurs par défaut
+ * non confirmées utilisées par le SNAPSHOT (effet GLOBAL : la table est partagée). La RPC refuse
+ * si non-admin, dossier non soumis, périmé, ou si une valeur a changé depuis la soumission.
+ */
+export async function approuverDossier(dossierId: string, valeurIds: string[]) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("approuver_dossier", {
+    p_dossier: dossierId,
+    p_valeurs: valeurIds,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}`);
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+  redirect(`/dossiers/${dossierId}/rapport`);
+}
+
+/** Renvoi « À corriger » (admin) : commentaires par section (liste fixe SECTIONS), bornés. */
+export async function renvoyerDossier(dossierId: string, commentaires: Record<string, string>) {
+  const supabase = await createClient();
+
+  const { data: estAdmin } = await supabase.rpc("is_admin");
+  if (!estAdmin) throw new Error("Renvoi à corriger réservé aux administrateurs.");
+
+  // Valider les clés contre SECTIONS et borner la longueur (A11).
+  const propre: Record<string, string> = {};
+  for (const [section, texte] of Object.entries(commentaires)) {
+    if (!SECTIONS.includes(section as (typeof SECTIONS)[number])) continue;
+    const t = texte.trim();
+    if (!t) continue;
+    if (t.length > 4000) throw new Error(`Commentaire « ${section} » trop long (max 4000 caractères).`);
+    propre[section] = t;
+  }
+
+  const { error } = await supabase
+    .from("dossiers")
+    .update({ statut: "a_corriger", commentaires: propre })
+    .eq("id", dossierId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/dossiers/${dossierId}`);
