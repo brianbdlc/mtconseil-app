@@ -8,12 +8,12 @@ Découpage en tranches verticales (tracer bullets), livrables une à une. Priori
 
 Décisions durables qui s'appliquent à toutes les phases :
 
-- **Stack** : Next.js (App Router) + Supabase (Auth, Postgres+RLS, Storage) + Trigger.dev (jobs longs) + API Anthropic (Claude vision/texte).
+- **Stack** : Next.js (App Router) + Supabase (Auth, Postgres+RLS, Storage) + API Anthropic (Claude vision/texte). **Trigger.dev abandonné** : l'export `.docx` est une **route synchrone** (`/dossiers/[id]/export`) qui rend, dépose dans Storage et versionne en ligne (Phase 5) ; les lectures de plaque appellent l'API Anthropic directement (Phase 2). À réintroduire seulement si un vrai job long apparaît.
 - **Hébergement** : Vercel + Supabase région **Canada (ca-central)**. Ne règle pas la Loi 25 côté Anthropic (photos/factures sortent du Québec) → contrainte opérationnelle, pas technique.
 - **Règle fondatrice** : l'IA ne calcule ni ne devine. **Le code calcule** (module TS pur), l'IA **lit/propose** sous validation, l'ingénieur **confirme**. Un champ incertain reste **vide (`null`)**.
-- **« Quatre acteurs »** = patron de **flux de données**, pas d'agents autonomes : drapeaux `validé` en base + appels Claude ciblés (jobs Trigger.dev) + code d'assemblage. L'assembleur ne lit **que du validé** (requête filtrée).
+- **« Quatre acteurs »** = patron de **flux de données**, pas d'agents autonomes : drapeaux `validé` en base + appels Claude ciblés + code d'assemblage. L'assembleur ne lit **que du validé** (requête filtrée).
 - **Routes** (App Router) : `/login`, `/dossiers`, `/dossiers/[id]`, `/dossiers/[id]/equipements/[eqId]`, `/dossiers/[id]/factures`, `/dossiers/[id]/mesures`, `/dossiers/[id]/rapport`, `/valeurs-defaut` (tous les ingénieurs), `/admin/parametres` (admin), `/admin/comptes`, `/admin/modele`.
-- **Modèles clés** (tables Postgres) : `profiles` (rôle `admin|engineer`, actif/inactif), `dossiers` (client, adresse, statut, ingénieur responsable), `equipements` (champs + unité d'origine + `validated` + confiance par champ), `photos`, `photo_groupes`, `default_values` (type → facteur de charge + poste de consommation + `confirmé`), `factures`, `mesures`, `rapports` (versions + snapshot JSON gelé), `report_templates` (textes fixes + numéro de version), `audit_log` (immuable, append-only).
+- **Modèles clés** (tables Postgres) : `profiles` (rôle `admin|engineer`, actif/inactif), `dossiers` (client, adresse, statut, ingénieur responsable), `equipements` (champs + unité d'origine + `validated` + confiance par champ), `photos`, `photo_groupes`, `default_values` (type → facteur de charge + poste de consommation + `confirmé`), `factures`, `mesures`, `rapport_versions` (un enregistrement par export : snapshot JSON gelé + chemin Storage + sha256 ; le `statut` et le snapshot courant vivent sur `dossiers`, **pas de table `rapports`**), `report_templates` (textes fixes + numéro de version, **Phase 7**), `audit_log` (immuable, append-only).
 - **Validation** : par champ, jamais en bloc. Confiance en 3 états (`lisible | partiel | illisible`) + vérifs de plausibilité du code. Unité conservée, convertie avant tout calcul.
 - **Permissions** : RLS **dès la première migration**. Modèle 2 rôles au départ (`admin|engineer`, tous voient tous les dossiers) ; droits fins par personne en Phase 8. Réservés admin dès qu'ils existent : approbation, table des valeurs par défaut, seuil de cohérence, textes fixes, suppression dossier, gestion des comptes, forcer un verrou, autoriser une soumission incomplète.
 - **Journal** : immuable, écrit par trigger Postgres (qui, quand, ancienne/nouvelle valeur) ; couvre données, approbations, statuts, exports. Policies refusant UPDATE/DELETE.
@@ -30,7 +30,7 @@ Décisions durables qui s'appliquent à toutes les phases :
 
 ### Ce qu'on livre
 
-Un ingénieur se connecte, crée un dossier (client, adresse, statut), y ajoute un équipement **à la main** (puissance + unité, heures, facteur de charge), le code calcule la consommation annuelle (kWh/an) en convertissant l'unité, puis l'ingénieur exporte un `.docx` (modèle **provisoire**, docxtemplater, généré par un job Trigger.dev et déposé dans Storage) contenant cet équipement et son calcul. Chaque action est tracée au journal immuable.
+Un ingénieur se connecte, crée un dossier (client, adresse, statut), y ajoute un équipement **à la main** (puissance + unité, heures, facteur de charge), le code calcule la consommation annuelle (kWh/an) en convertissant l'unité, puis l'ingénieur exporte un `.docx` (modèle **provisoire**, docxtemplater, rendu par une **route synchrone** — le dépôt Storage + versionnage arrivent en Phase 5) contenant cet équipement et son calcul. Chaque action est tracée au journal immuable.
 
 ### Critères d'acceptation
 
@@ -129,15 +129,15 @@ Le rapport avance dans les statuts Brouillon → Soumis → Approuvé → Export
 
 ### Critères d'acceptation
 
-- [ ] Statuts Brouillon → Soumis → Approuvé → Exporté + « À corriger » (commentaires par section).
-- [ ] Gel des valeurs (snapshot JSON) à la soumission ; brouillon recalculé.
-- [ ] Approbation réservée à l'admin ; Luis peut approuver ses propres rapports (tracé).
-- [ ] Modification après approbation → retour à « Soumis » ; export bloqué hors « Approuvé ».
-- [ ] Chaque export conservé ; modification ultérieure = nouvelle version.
+- [x] Statuts Brouillon → Soumis → Approuvé → Exporté + « À corriger » (commentaires par section). Matrice **imposée en base** (trigger `dossiers_statut_garde`), miroir TS dans `src/lib/statuts.ts`.
+- [x] Gel des valeurs (snapshot JSON) à la soumission ; brouillon/à-corriger recalculés en direct (`src/lib/rapport.ts`).
+- [x] Approbation réservée à l'admin (`approuver_dossier`, `security definer`) ; self-approve tracé (`approuve_par/le` + journal). Confirme en même temps les valeurs par défaut non confirmées utilisées par le snapshot.
+- [x] Modification après approbation → retour auto à « Soumis » + `snapshot_perime` (triggers `equipements`/`dossiers`) ; export bloqué hors « Approuvé » (403 + garde `app.export_ok`).
+- [x] Chaque export conservé dans `rapport_versions` + bucket privé `rapports` (sha256) ; re-export idempotent, modification ultérieure = nouvelle version (`enregistrer_export`).
 
-> **Report Phase 3 → 5** :
-> - Le trigger de reset `vd_reset_confirme` ne vise aujourd'hui que l'écriture **connectée non-admin**. En Phase 5, il devra aussi **remettre `confirme=false` dès que `facteur_charge` ou `poste` change, même par un admin** (une valeur confirmée ne doit pas rester confirmée après modification de sa substance).
-> - Décider **comment l'approbation pose le drapeau** `confirme=true` (via le journal / un bloc « À réviser ») puisqu'il n'y a pas de bouton « confirmer » en Phase 3.
+> **Report Phase 3 → 5 (résolus)** :
+> - `vd_reset_confirme` étendu : `confirme=false` dès que `facteur_charge`/`poste` change, **même pour un admin**.
+> - Confirmation des valeurs par défaut = **à l'approbation d'un rapport** (`approuver_dossier`) **et** via un bouton « Confirmer » admin dans `/valeurs-defaut`.
 
 ## Bloquée par
 
