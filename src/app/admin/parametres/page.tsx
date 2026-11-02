@@ -11,6 +11,12 @@ export default async function ParametresPage() {
     .eq("cle", "facteur_conversion_gaz")
     .maybeSingle();
 
+  const { data: seuil } = await supabase
+    .from("parametres")
+    .select("valeur, source, confirme, unite")
+    .eq("cle", "seuil_coherence")
+    .maybeSingle();
+
   return (
     <div className="max-w-xl space-y-6">
       <div>
@@ -46,6 +52,38 @@ export default async function ParametresPage() {
 
         <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" name="confirme" defaultChecked={gaz?.confirme ?? false} />
+          Confirmé
+        </label>
+
+        <Button type="submit">Enregistrer</Button>
+      </form>
+
+      <form action={updateParametre} className="border border-border rounded-lg bg-surface p-4 space-y-4">
+        <input type="hidden" name="cle" value="seuil_coherence" />
+
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold text-ink">Seuil de cohérence (estimé vs factures)</h2>
+          {seuil && !seuil.confirme && <StatusChip status="a_confirmer" />}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="seuil_valeur">Valeur</Label>
+            <Input id="seuil_valeur" name="valeur" className="tabular-nums" defaultValue={seuil?.valeur ?? ""} />
+          </div>
+          <div>
+            <Label htmlFor="seuil_unite">Unité</Label>
+            <Input id="seuil_unite" value="%" readOnly className="bg-bg text-muted" />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="seuil_source">Source</Label>
+          <Input id="seuil_source" name="source" defaultValue={seuil?.source ?? ""} />
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input type="checkbox" name="confirme" defaultChecked={seuil?.confirme ?? false} />
           Confirmé
         </label>
 
