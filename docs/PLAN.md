@@ -104,10 +104,10 @@ L'assembleur relit le dossier : il signale toute fiche non validée ou donnée m
 
 ### Critères d'acceptation
 
-- [ ] Contrôle de complétude : liste fiches non validées / données manquantes ; bloque la soumission.
-- [ ] Admin peut autoriser incomplet avec raison écrite (tracée).
-- [ ] Contrôle de cohérence : écart > seuil (défaut 20 %, réglable par l'admin) → alerte ; sans factures → « non disponible ».
-- [ ] Sommaire exécutif + tableau résumé générés.
+- [x] Contrôle de complétude : liste fiches non validées / données manquantes ; bloque la soumission.
+- [x] Admin peut autoriser incomplet avec raison écrite (tracée).
+- [x] Contrôle de cohérence : écart > seuil (défaut 20 %, réglable par l'admin) → alerte ; sans factures → « non disponible ».
+- [x] Sommaire exécutif + tableau résumé générés.
 
 > **Report Phase 3 → 4** :
 > - Un équipement **sans type** ou un type **sans facteur** = **donnée manquante** à traiter par le contrôle de complétude (en Phase 3 ils sont seulement signalés / exclus du calcul).

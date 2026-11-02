@@ -8,6 +8,7 @@ import {
   facteurEffectif,
   normaliserSurcharge,
 } from "@/lib/calc";
+import { controleCompletude, type EquipementAssembleur } from "@/lib/assembleur";
 import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
 
@@ -364,7 +365,7 @@ export async function updateParametre(formData: FormData) {
 
   const { data: rows, error } = await supabase
     .from("parametres")
-    .update({ valeur, source, confirme, unite: "kWh/m3" }) // unité figée
+    .update({ valeur, source, confirme }) // unité figée par le seed, jamais modifiée ici
     .eq("cle", cle)
     .select("id");
   if (error) throw new Error(error.message);
@@ -403,6 +404,57 @@ export async function updateBatiment(formData: FormData) {
 
   revalidatePath(`/dossiers/${dossierId}`);
   redirect(`/dossiers/${dossierId}`);
+}
+
+// ───────────────────────── Soumission (Phase 4, assembleur) ─────────────────────────
+// Soumission minimale brouillon → soumis, gardée par la complétude (controleCompletude).
+// Gel/snapshot, approbation, versions, verrouillage export = Phase 5.
+
+export async function soumettreDossier(formData: FormData) {
+  const dossierId = String(formData.get("dossier_id"));
+  const raison = strOrNull(formData.get("raison"));
+  const supabase = await createClient();
+
+  const { data: dossier, error: eDossier } = await supabase
+    .from("dossiers")
+    .select("superficie_valeur, superficie_unite")
+    .eq("id", dossierId)
+    .single();
+  if (eDossier) throw new Error(eDossier.message);
+
+  // Mêmes colonnes que la page rapport, AVEC les champs IA (confiance/validated) pour la règle 1.
+  const { data: equipements } = await supabase
+    .from("equipements")
+    .select(
+      "id, nom, puissance_valeur, puissance_unite, heures_par_an, facteur_charge, type_id, type:valeurs_defaut(poste, confirme, facteur_charge), marque_confiance, marque_validated, modele_confiance, modele_validated, puissance_confiance, puissance_validated, annee_confiance, annee_validated",
+    )
+    .eq("dossier_id", dossierId)
+    .returns<EquipementAssembleur[]>();
+
+  const completude = controleCompletude(equipements ?? [], dossier);
+
+  const update: Record<string, unknown> = { statut: "soumis" };
+
+  if (completude.bloquant) {
+    // Incomplet : réservé à un admin, avec une raison écrite (tracée par log_change).
+    const { data: estAdmin } = await supabase.rpc("is_admin");
+    if (!estAdmin) {
+      throw new Error("Soumission bloquée : corrigez les points manquants ou demandez à un administrateur.");
+    }
+    if (!raison) {
+      throw new Error("Une soumission incomplète exige une raison écrite.");
+    }
+    const { data: user } = await supabase.auth.getUser();
+    update.soumission_incomplete_raison = raison;
+    update.soumission_incomplete_par = user.user?.id ?? null;
+  }
+
+  const { error } = await supabase.from("dossiers").update(update).eq("id", dossierId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}`);
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+  redirect(`/dossiers/${dossierId}/rapport`);
 }
 
 export async function signOut() {

@@ -3,8 +3,10 @@
 // ne pas dépendre d'un éditeur Word.
 //
 // SWAP MODÈLE (Phase ultérieure) : remplacer rapport-provisoire.docx par le VRAI modèle
-// Word de Luis portant les MÊMES placeholders ({client}, {adresse}, {statut} et la boucle
-// {#equipements}…{/equipements}). Aucune autre ligne de code à changer.
+// Word de Luis portant les MÊMES placeholders ({client}, {adresse}, {statut}, le sommaire
+// {sommaire_texte}/{total_kwh}/{intensite}/{gaz_kwh}, la boucle {#bilan_postes}…{/bilan_postes}
+// et {#equipements}…{/equipements}). Aucune autre ligne de code à changer.
+// ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 //
 // Régénérer : `node scripts/build-template.mjs`
 
@@ -38,6 +40,17 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${p("Client : {client}")}
     ${p("Adresse : {adresse}")}
     ${p("Statut : {statut}")}
+    ${p("")}
+    ${p("Sommaire exécutif :")}
+    ${p("{sommaire_texte}")}
+    ${p("")}
+    ${p("Bilan par poste :")}
+    ${p("{#bilan_postes}")}
+    ${p("- {poste} : {kwh} kWh/an ({pct} %)")}
+    ${p("{/bilan_postes}")}
+    ${p("Total (toutes énergies) : {total_kwh} kWh/an")}
+    ${p("Intensité : {intensite} kWh/m²")}
+    ${p("Gaz saisi (équivalent) : {gaz_kwh} kWh")}
     ${p("")}
     ${p("Équipements :")}
     ${p("{#equipements}")}

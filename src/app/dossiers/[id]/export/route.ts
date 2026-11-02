@@ -3,7 +3,15 @@ import path from "node:path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { createClient } from "@/lib/supabase/server";
-import { ligneEquipement } from "@/lib/calc";
+import {
+  bilanEnergetique,
+  gazEnKwh,
+  intensiteKwhM2,
+  libellePoste,
+  ligneEquipement,
+  type LigneBilan,
+} from "@/lib/calc";
+import { sommaireExecutif } from "@/lib/assembleur";
 
 type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
 
@@ -27,7 +35,9 @@ export async function GET(
 
   const { data: dossier } = await supabase
     .from("dossiers")
-    .select("client, adresse, statut")
+    .select(
+      "client, adresse, statut, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite",
+    )
     .eq("id", id)
     .single();
   if (!dossier) return new Response("Dossier introuvable", { status: 404 });
@@ -52,6 +62,21 @@ export async function GET(
       }[]
     >();
 
+  // Recalcul du bilan complet (source unique = calc.ts) pour le sommaire exécutif (Phase 4).
+  const eqs = equipements ?? [];
+  const bilan = bilanEnergetique(eqs.map((e) => ligneEquipement(e)) as LigneBilan[]);
+  const { data: paramGaz } = await supabase
+    .from("parametres")
+    .select("valeur")
+    .eq("cle", "facteur_conversion_gaz")
+    .maybeSingle();
+  const gazKwh =
+    dossier.gaz_quantite !== null && dossier.gaz_unite
+      ? gazEnKwh({ quantite: dossier.gaz_quantite, unite: dossier.gaz_unite, facteurM3: paramGaz?.valeur ?? null })
+      : null;
+  const intensite = intensiteKwhM2(bilan.totalEquipementsKwh, dossier.superficie_valeur, dossier.superficie_unite);
+  const sommaire = sommaireExecutif({ dossier, bilan, intensite, gazKwh });
+
   const templatePath = path.join(
     process.cwd(),
     "src/templates/rapport-provisoire.docx",
@@ -66,7 +91,16 @@ export async function GET(
     client: dossier.client,
     adresse: dossier.adresse ?? "",
     statut: dossier.statut,
-    equipements: (equipements ?? []).map((e) => ({
+    sommaire_texte: sommaire.texte,
+    intensite: intensite !== null ? fmt(intensite) : "—",
+    total_kwh: fmt(bilan.totalEquipementsKwh),
+    gaz_kwh: gazKwh !== null ? fmt(gazKwh) : "—",
+    bilan_postes: bilan.parPoste.map((p) => ({
+      poste: libellePoste(p.poste),
+      kwh: fmt(p.kwh),
+      pct: Math.round(p.pct),
+    })),
+    equipements: eqs.map((e) => ({
       nom: e.nom ?? "",
       puissance_valeur: e.puissance_valeur ?? "",
       puissance_unite: e.puissance_unite ?? "",

@@ -105,6 +105,9 @@ export default async function DossierPage({
             <Link href={`/dossiers/${id}/photos`}>
               <Button variant="secondary">Photos</Button>
             </Link>
+            <Link href={`/dossiers/${id}/rapport`}>
+              <Button variant="secondary">Rapport</Button>
+            </Link>
             <a href={`/dossiers/${id}/export`}>
               <Button variant="secondary">Exporter .docx</Button>
             </a>
