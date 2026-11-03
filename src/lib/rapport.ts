@@ -39,7 +39,7 @@ export type DossierSnapshot = {
 export function construireSnapshot(
   dossier: DossierSnapshot,
   equipements: EquipementSnapshot[],
-  parametres: { facteurGaz: number | null },
+  parametres: { facteurGaz: number | null; totalFacturesKwh: number | null },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
   const gazKwh =
@@ -68,6 +68,7 @@ export function construireSnapshot(
     bilan,
     intensite,
     gazKwh,
+    totalFacturesKwh: parametres.totalFacturesKwh, // gelé pour la cohérence du rapport figé (Phase 6)
     sommaire,
     equipements: equipements.map((e) => ({
       nom: e.nom,

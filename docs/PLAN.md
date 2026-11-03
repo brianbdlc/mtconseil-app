@@ -155,14 +155,17 @@ L'ingénieur téléverse les factures d'énergie (Hydro-Québec, Énergir) sur p
 
 ### Critères d'acceptation
 
-- [ ] Upload de factures multi-périodes ; Claude propose, le code vérifie (sommes, continuité des dates).
-- [ ] Doutes signalés ; confirmation par l'ingénieur ; saisie manuelle en repli.
-- [ ] Les factures confirmées alimentent le contrôle de cohérence (Phase 4).
-- [ ] *Design final arrêté une fois 3-4 vraies factures observées.*
+- [x] Upload de factures multi-périodes (bucket privé `factures`) ; le code vérifie (continuité : chevauchement/trou par énergie, période inversée, conso nulle — `src/lib/factures.ts`). Claude propose via `lireFactureAction` (JSON schema, PDF+image), **gâté `ALLOW_FACTURE_AI`** (Loi 25).
+- [x] Doutes signalés (`verifierFactures`) ; confirmation par l'ingénieur (`confirmerFacture` + garde base `factures_confirme_complet`) ; saisie manuelle en repli (`updateFacture`).
+- [x] Les factures **confirmées** alimentent le contrôle de cohérence (`totalFacturesKwh` → `controleCoherence`, en direct + gelé dans le snapshot à la soumission).
+- [ ] *Design final arrêté une fois 3-4 vraies factures observées.* — **en attente** (aucune vraie facture encore).
 
 ## Bloquée par
 
 - Phase 4.
+
+> **Vérifié (2026-11-02)** : migration appliquée sur DEV (table `factures` RLS active, bucket privé, trigger journal → 4 INSERT au `audit_log`) ; garde CHECK bloque une confirmation incomplète ; `npm test` (44 ✓, dont `factures.test.ts`) ; chemin cohérence rejoué sur **vraies lignes DEV** → total 29 000 kWh (confirmées seules, non-confirmée + gaz m³ sans facteur exclus), écart 10,3 % dans le seuil, chevauchement détecté ; total gelé lu par `FrozenReport`.
+> **Non exercé en direct** : le flux UI connecté (upload navigateur, boutons Confirmer/Lire IA) et l'extraction Claude réelle — voir « ce qui manque ».
 
 ---
 

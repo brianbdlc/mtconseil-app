@@ -13,6 +13,7 @@ import { construireSnapshot } from "@/lib/rapport";
 import { SECTIONS } from "@/lib/statuts";
 import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
+import { lireFacture, totalFacturesKwh, type Facture } from "@/lib/factures";
 
 function strOrNull(v: FormDataEntryValue | null): string | null {
   return String(v ?? "").trim() || null;
@@ -28,6 +29,7 @@ function mediaTypeDepuisChemin(path: string): string {
   if (ext === "png") return "image/png";
   if (ext === "webp") return "image/webp";
   if (ext === "gif") return "image/gif";
+  if (ext === "pdf") return "application/pdf"; // factures souvent en PDF
   return "image/jpeg"; // défaut : les HEIC sont convertis en JPEG avant upload
 }
 
@@ -285,6 +287,94 @@ export async function validerChamp(equipementId: string, dossierId: string, cham
   revalidatePath(`/dossiers/${dossierId}/equipements/${equipementId}`);
 }
 
+// ───────────────────────── Factures (Phase 6, US-32) ─────────────────────────
+// L'IA LIT/PROPOSE (confirme=false), le CODE vérifie, l'ingénieur CONFIRME. Les factures
+// confirmées alimentent la cohérence (assembleur). Saisie manuelle = chemin par défaut sans IA.
+
+/**
+ * Gate Loi 25 (miroir lirePlaqueAction) : l'envoi d'une facture à Anthropic est bloqué par défaut.
+ * N'autoriser (ALLOW_FACTURE_AI=true, server-only) que pour tester sur des factures ANONYMISÉES.
+ * Écrit les champs proposés avec source='ia', conso_confiance, confirme=false (à revoir par l'ingénieur).
+ */
+export async function lireFactureAction(factureId: string, dossierId: string) {
+  if (process.env.ALLOW_FACTURE_AI !== "true") {
+    throw new Error(
+      "Lecture de facture désactivée (Loi 25) : l'envoi à Anthropic est bloqué tant que Luis n'a pas donné son accord écrit. Mettre ALLOW_FACTURE_AI=true (factures anonymisées uniquement) pour tester.",
+    );
+  }
+
+  const supabase = await createClient();
+
+  const { data: facture, error: eFacture } = await supabase
+    .from("factures")
+    .select("storage_path")
+    .eq("id", factureId)
+    .single();
+  if (eFacture) throw new Error(eFacture.message);
+  if (!facture?.storage_path) throw new Error("Aucun fichier à lire pour cette facture.");
+
+  const { data: blob, error: eDl } = await supabase.storage.from("factures").download(facture.storage_path);
+  if (eDl) throw new Error(eDl.message);
+  const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+
+  const p = await lireFacture({ base64, mediaType: mediaTypeDepuisChemin(facture.storage_path) });
+
+  // Écrit toute la proposition (y compris les null : un champ non lu reste vide). confirme=false.
+  const { error } = await supabase
+    .from("factures")
+    .update({
+      energie: p.energie,
+      fournisseur: p.fournisseur,
+      periode_debut: p.periode_debut,
+      periode_fin: p.periode_fin,
+      conso_valeur: p.conso_valeur,
+      conso_unite: p.conso_unite,
+      conso_confiance: p.confiance,
+      source: "ia",
+      confirme: false,
+    })
+    .eq("id", factureId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/factures`);
+}
+
+/**
+ * Création / édition manuelle d'une facture (saisie = repli sans IA). confirme suit la case :
+ * une facture saisie à la main est confirmée par défaut (l'ingénieur l'a renseignée).
+ * Le CHECK factures_confirme_complet garantit qu'une confirmée porte energie + conso + unité.
+ */
+export async function updateFacture(formData: FormData) {
+  const id = strOrNull(formData.get("id")); // null = création
+  const dossierId = String(formData.get("dossier_id"));
+  const row = {
+    energie: strOrNull(formData.get("energie")),
+    fournisseur: strOrNull(formData.get("fournisseur")),
+    periode_debut: strOrNull(formData.get("periode_debut")),
+    periode_fin: strOrNull(formData.get("periode_fin")),
+    conso_valeur: numFr(formData.get("conso_valeur")),
+    conso_unite: strOrNull(formData.get("conso_unite")),
+    confirme: formData.get("confirme") === "on",
+    source: "manuel" as const,
+  };
+
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("factures").update(row).eq("id", id)
+    : await supabase.from("factures").insert({ ...row, dossier_id: dossierId });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/factures`);
+}
+
+/** Confirme une proposition IA après revue de l'ingénieur (US-32). */
+export async function confirmerFacture(factureId: string, dossierId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("factures").update({ confirme: true }).eq("id", factureId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}/factures`);
+}
+
 // ───────────────────────── Valeurs par défaut (US-22→24) ─────────────────────────
 // CRUD ouvert à tout ingénieur (RLS) ; le trigger vd_reset force confirme=false pour un
 // ingénieur connecté. Journalisé par log_change.
@@ -464,11 +554,22 @@ export async function soumettreDossier(formData: FormData) {
     .eq("cle", "facteur_conversion_gaz")
     .maybeSingle();
 
+  // Factures confirmées → total gelé dans le snapshot (cohérence du rapport figé).
+  const { data: factures } = await supabase
+    .from("factures")
+    .select("id, energie, periode_debut, periode_fin, conso_valeur, conso_unite, confirme")
+    .eq("dossier_id", dossierId)
+    .returns<Facture[]>();
+  const facteurGaz = paramGaz?.valeur ?? null;
+
   const eqs = equipements ?? [];
   const completude = controleCompletude(eqs, dossier);
 
   const { data: user } = await supabase.auth.getUser();
-  const snapshot = construireSnapshot(dossier, eqs, { facteurGaz: paramGaz?.valeur ?? null });
+  const snapshot = construireSnapshot(dossier, eqs, {
+    facteurGaz,
+    totalFacturesKwh: totalFacturesKwh(factures ?? [], facteurGaz),
+  });
 
   const update: Record<string, unknown> = {
     statut: "soumis",
