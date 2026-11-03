@@ -105,6 +105,9 @@ export default async function DossierPage({
             <Link href={`/dossiers/${id}/photos`}>
               <Button variant="secondary">Photos</Button>
             </Link>
+            <Link href={`/dossiers/${id}/factures`}>
+              <Button variant="secondary">Factures</Button>
+            </Link>
             <Link href={`/dossiers/${id}/rapport`}>
               <Button variant="secondary">Rapport</Button>
             </Link>
@@ -166,7 +169,9 @@ export default async function DossierPage({
 
           <div className="border-t border-border pt-4">
             <p className="text-xs text-muted mb-2">
-              Gaz naturel (saisie manuelle, remplacée par les factures en Phase 6).
+              Gaz naturel (saisie manuelle de référence). Les{" "}
+              <Link href={`/dossiers/${id}/factures`} className="underline">factures</Link> alimentent
+              le contrôle de cohérence du rapport.
             </p>
             <div className="grid grid-cols-3 gap-4">
               <div>

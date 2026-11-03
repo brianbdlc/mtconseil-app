@@ -17,6 +17,7 @@ import {
   type EquipementAssembleur,
 } from "@/lib/assembleur";
 import { SECTIONS } from "@/lib/statuts";
+import { totalFacturesKwh, type Facture } from "@/lib/factures";
 import type { Snapshot } from "@/lib/rapport";
 import { Button, StatusChip } from "@/components/ui";
 
@@ -159,6 +160,19 @@ async function FrozenReport({
   }
   const valeurIds = aConfirmer.map((v) => v.id);
 
+  // Cohérence gelée : total factures figé dans le snapshot vs seuil courant (réglable par l'admin).
+  const { data: pSeuil } = await supabase
+    .from("parametres")
+    .select("valeur")
+    .eq("cle", "seuil_coherence")
+    .maybeSingle();
+  const seuil = pSeuil?.valeur ?? 20;
+  const coherence = controleCoherence(
+    snapshot.bilan.totalEquipementsKwh,
+    snapshot.totalFacturesKwh ?? null,
+    seuil,
+  );
+
   return (
     <>
       <div className="border border-border rounded-lg bg-bg px-4 py-3 text-sm">
@@ -177,6 +191,20 @@ async function FrozenReport({
       <section>
         <h2 className="text-[15px] font-semibold text-ink mb-3">Sommaire exécutif (gelé)</h2>
         <BilanEtSommaire sommaire={snapshot.sommaire} bilan={snapshot.bilan} />
+      </section>
+
+      <section>
+        <h2 className="text-[15px] font-semibold text-ink mb-3">Cohérence estimé vs factures (gelée)</h2>
+        <div className="border border-border rounded-lg bg-surface p-4 text-sm text-muted">
+          {coherence.disponible ? (
+            <p className={coherence.depasse ? "text-[#B42318]" : "text-ink"}>
+              Écart de {fmt(coherence.ecartPct ?? null)} % (seuil {seuil} %) —{" "}
+              {coherence.depasse ? "au-delà du seuil." : "dans le seuil."}
+            </p>
+          ) : (
+            <p>Non disponible — aucune facture confirmée au moment de la soumission.</p>
+          )}
+        </div>
       </section>
 
       {dossier.statut === "soumis" && estAdmin && (
@@ -321,6 +349,14 @@ async function LiveReport({
   const facteurGaz = parametres?.find((p) => p.cle === "facteur_conversion_gaz")?.valeur ?? null;
   const seuilCoherence = parametres?.find((p) => p.cle === "seuil_coherence")?.valeur ?? 20;
 
+  // Factures confirmées → total pour la cohérence (US-36/37). null = « non disponible ».
+  const { data: factures } = await supabase
+    .from("factures")
+    .select("id, energie, periode_debut, periode_fin, conso_valeur, conso_unite, confirme")
+    .eq("dossier_id", id)
+    .eq("confirme", true)
+    .returns<Facture[]>();
+
   const eqs = equipements ?? [];
   const bilan = bilanEnergetique(eqs.map((e) => ligneEquipement(e)) as LigneBilan[]);
   const gazKwh =
@@ -330,7 +366,11 @@ async function LiveReport({
   const intensite = intensiteKwhM2(bilan.totalEquipementsKwh, dossier.superficie_valeur, dossier.superficie_unite);
 
   const completude = controleCompletude(eqs, dossier);
-  const coherence = controleCoherence(bilan.totalEquipementsKwh, null, seuilCoherence);
+  const coherence = controleCoherence(
+    bilan.totalEquipementsKwh,
+    totalFacturesKwh(factures ?? [], facteurGaz),
+    seuilCoherence,
+  );
   const sommaire = sommaireExecutif({ dossier, bilan, intensite, gazKwh });
 
   const commentaires = dossier.commentaires ?? {};
@@ -402,7 +442,7 @@ async function LiveReport({
         </div>
       </section>
 
-      {/* Cohérence (US-37) — factures en Phase 6 */}
+      {/* Cohérence (US-36/37) — alimentée par les factures confirmées (Phase 6). */}
       <section>
         <h2 className="text-[15px] font-semibold text-ink mb-3">Cohérence estimé vs factures</h2>
         <div className="border border-border rounded-lg bg-surface p-4 text-sm text-muted">
@@ -412,7 +452,10 @@ async function LiveReport({
               {coherence.depasse ? "au-delà du seuil." : "dans le seuil."}
             </p>
           ) : (
-            <p>Non disponible — aucune facture (Phase 6). Seuil configuré : {seuilCoherence} %.</p>
+            <p>
+              Non disponible — aucune facture confirmée. Seuil configuré : {seuilCoherence} %.{" "}
+              <Link href={`/dossiers/${id}/factures`} className="underline">Ajouter des factures</Link>.
+            </p>
           )}
         </div>
       </section>
