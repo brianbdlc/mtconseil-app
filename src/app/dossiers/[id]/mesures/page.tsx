@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { retourAnnees, investissementNet, type Mesure } from "@/lib/mesures";
 import { updateMesure, supprimerMesure } from "../../actions";
 import { Button, Input, Label } from "@/components/ui";
+import { VerrouFiche } from "@/components/verrou-fiche";
 
 type MesureRow = Mesure & { id: string };
 
@@ -45,6 +46,7 @@ export default function MesuresPage() {
 
   return (
     <div className="space-y-8">
+      <VerrouFiche ressource={`mesure:${dossierId}`} />
       <div>
         <Link href={`/dossiers/${dossierId}/rapport`} className="text-xs text-muted hover:text-ink">
           ← Rapport

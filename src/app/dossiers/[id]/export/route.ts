@@ -88,6 +88,12 @@ export async function GET(
   const { id } = await params;
   const supabase = await createClient();
 
+  // Droit d'export (Phase 8) : la RLS laisse lire le snapshot, mais l'export est une capacité à part.
+  const { data: peutExporter } = await supabase.rpc("peut_exporter");
+  if (!peutExporter) {
+    return new Response("Droit insuffisant : export réservé aux comptes autorisés.", { status: 403 });
+  }
+
   const { data: dossier } = await supabase
     .from("dossiers")
     .select("client, statut, rapport_snapshot")
