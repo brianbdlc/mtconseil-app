@@ -45,6 +45,27 @@ function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
       puissance_unite: e.puissance_unite ?? "",
       conso_kwh_an: fmt(e.conso),
     })),
+    // Phase 7 : mesures/ROI, sections narratives validées, textes fixes du modèle gelés + version.
+    mesures: snapshot.mesures.map((m) => ({
+      nom: m.nom ?? "",
+      economies_annuelles: fmt(m.economies_annuelles),
+      cout_investissement: fmt(m.cout_investissement),
+      subvention: fmt(m.subvention),
+      retour_annees:
+        m.retour_annees === null
+          ? "—"
+          : new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(m.retour_annees),
+    })),
+    description_installations: snapshot.textes.description_installations ?? "",
+    mesures_mise_en_forme: snapshot.textes.mesures_mise_en_forme ?? "",
+    problemes_techniques: snapshot.textes.problemes_techniques ?? "",
+    phasage_travaux: snapshot.textes.phasage_travaux ?? "",
+    risques_sse: snapshot.textes.risques_sse ?? "",
+    conclusions: snapshot.textes.conclusions ?? "",
+    methodologie: snapshot.modele.methodologie ?? "",
+    norme_ashrae: snapshot.modele.norme_ashrae ?? "",
+    modele_risques_sse: snapshot.modele.risques_sse ?? "",
+    modele_version: snapshot.modele_version,
   });
 
   return doc.getZip().generate({ type: "nodebuffer" });

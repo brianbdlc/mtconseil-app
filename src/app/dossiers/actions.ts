@@ -9,11 +9,17 @@ import {
   normaliserSurcharge,
 } from "@/lib/calc";
 import { controleCompletude, type EquipementAssembleur } from "@/lib/assembleur";
-import { construireSnapshot } from "@/lib/rapport";
-import { SECTIONS } from "@/lib/statuts";
+import { construireSnapshot, type ModeleSnapshot } from "@/lib/rapport";
+import { SECTIONS, NARRATIVE_SECTIONS, type NarrativeSection } from "@/lib/statuts";
 import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
 import { lireFacture, totalFacturesKwh, type Facture } from "@/lib/factures";
+import { retourAnnees, type Mesure } from "@/lib/mesures";
+import {
+  extraireFichesValidees,
+  redigerDescriptionInstallations,
+  mettreEnFormeMesures,
+} from "@/lib/redaction";
 
 function strOrNull(v: FormDataEntryValue | null): string | null {
   return String(v ?? "").trim() || null;
@@ -375,6 +381,149 @@ export async function confirmerFacture(factureId: string, dossierId: string) {
   revalidatePath(`/dossiers/${dossierId}/factures`);
 }
 
+// ───────────────────────── Mesures / ROI (Phase 7, US-33/40) ─────────────────────────
+// Saisie INGÉNIEUR (aucune IA). Le CODE calcule le retour (src/lib/mesures.ts) ; rien n'est stocké.
+
+/** Création / édition d'une mesure (create si id vide). */
+export async function updateMesure(formData: FormData) {
+  const id = strOrNull(formData.get("id"));
+  const dossierId = String(formData.get("dossier_id"));
+  const row = {
+    nom: strOrNull(formData.get("nom")),
+    economies_annuelles: numFr(formData.get("economies_annuelles")),
+    cout_investissement: numFr(formData.get("cout_investissement")),
+    subvention: numFr(formData.get("subvention")) ?? 0,
+  };
+
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("mesures").update(row).eq("id", id)
+    : await supabase.from("mesures").insert({ ...row, dossier_id: dossierId });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/mesures`);
+}
+
+export async function supprimerMesure(mesureId: string, dossierId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("mesures").delete().eq("id", mesureId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}/mesures`);
+}
+
+// ───────────────────────── Sections narratives (Phase 7, US-41/42/43) ─────────────────────────
+// L'IA RÉDIGE un brouillon (source='ia', valide=false) sous validation ; sinon saisie à la main.
+// L'assembleur ne lit QUE valide=true. upsert sur (dossier_id, section).
+
+/** Saisie/édition manuelle d'une section → source='humain'. Modifier un brouillon le dévalide. */
+export async function updateTexteSection(formData: FormData) {
+  const dossierId = String(formData.get("dossier_id"));
+  const section = String(formData.get("section")) as NarrativeSection;
+  if (!NARRATIVE_SECTIONS.some((s) => s.cle === section)) {
+    throw new Error(`Section inconnue : ${section}`);
+  }
+  const texte = strOrNull(formData.get("texte"));
+  const valide = formData.get("valide") === "on";
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("rapport_textes")
+    .upsert({ dossier_id: dossierId, section, texte, source: "humain", valide }, { onConflict: "dossier_id,section" });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+}
+
+/** Marque une section comme validée (entre dans le snapshot). */
+export async function validerTexteSection(dossierId: string, section: NarrativeSection) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("rapport_textes")
+    .update({ valide: true })
+    .eq("dossier_id", dossierId)
+    .eq("section", section);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+}
+
+/**
+ * Gate Loi 25 (miroir lirePlaqueAction/lireFactureAction) : l'envoi de données à Anthropic est
+ * bloqué par défaut. N'autoriser (ALLOW_REDACTION_AI=true, server-only) que sur des données
+ * synthétiques tant que Luis n'a pas donné son accord écrit. La saisie manuelle fonctionne sans IA.
+ * Écrit un brouillon source='ia', valide=false (à revoir par l'ingénieur).
+ */
+export async function redigerSection(dossierId: string, section: NarrativeSection) {
+  if (process.env.ALLOW_REDACTION_AI !== "true") {
+    throw new Error(
+      "Rédaction IA désactivée (Loi 25) : l'envoi à Anthropic est bloqué tant que Luis n'a pas donné son accord écrit. Mettre ALLOW_REDACTION_AI=true (données synthétiques uniquement) pour tester.",
+    );
+  }
+  const meta = NARRATIVE_SECTIONS.find((s) => s.cle === section);
+  if (!meta || meta.source !== "ia") throw new Error(`Section non rédigeable par l'IA : ${section}`);
+
+  const supabase = await createClient();
+  let texte: string;
+
+  if (section === "description_installations") {
+    const { data: eqs } = await supabase
+      .from("equipements")
+      .select(
+        "nom, marque, marque_validated, modele, modele_validated, puissance_valeur, puissance_unite, puissance_validated, annee, annee_validated, etat, emplacement, dessert",
+      )
+      .eq("dossier_id", dossierId);
+    texte = await redigerDescriptionInstallations(extraireFichesValidees(eqs ?? []));
+  } else {
+    const { data: mesures } = await supabase
+      .from("mesures")
+      .select("nom, economies_annuelles, cout_investissement, subvention")
+      .eq("dossier_id", dossierId)
+      .order("ordre", { ascending: true })
+      .returns<Mesure[]>();
+    const enrichies = (mesures ?? []).map((m) => ({ ...m, retour_annees: retourAnnees(m) }));
+    texte = await mettreEnFormeMesures(enrichies, null);
+  }
+
+  const { error } = await supabase
+    .from("rapport_textes")
+    .upsert({ dossier_id: dossierId, section, texte, source: "ia", valide: false }, { onConflict: "dossier_id,section" });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+}
+
+// ───────────────────────── Modèle de rapport (Phase 7, admin-only, versionné) ─────────────────────────
+
+/** Édite les textes fixes du modèle et incrémente version (mutable + compteur). RLS is_admin(). */
+export async function updateTemplate(formData: FormData) {
+  const id = String(formData.get("id"));
+  const supabase = await createClient();
+
+  const { data: actuel } = await supabase
+    .from("report_templates")
+    .select("version")
+    .eq("id", id)
+    .maybeSingle();
+  if (!actuel) throw new Error("Modèle introuvable.");
+
+  const { data: rows, error } = await supabase
+    .from("report_templates")
+    .update({
+      methodologie: strOrNull(formData.get("methodologie")),
+      norme_ashrae: strOrNull(formData.get("norme_ashrae")),
+      risques_sse: strOrNull(formData.get("risques_sse")),
+      version: actuel.version + 1,
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!rows || rows.length === 0) {
+    throw new Error("Écriture refusée : la modification du modèle est réservée aux administrateurs.");
+  }
+
+  revalidatePath("/admin/modele");
+  redirect("/admin/modele");
+}
+
 // ───────────────────────── Valeurs par défaut (US-22→24) ─────────────────────────
 // CRUD ouvert à tout ingénieur (RLS) ; le trigger vd_reset force confirme=false pour un
 // ingénieur connecté. Journalisé par log_change.
@@ -562,6 +711,37 @@ export async function soumettreDossier(formData: FormData) {
     .returns<Facture[]>();
   const facteurGaz = paramGaz?.valeur ?? null;
 
+  // Phase 7 : mesures (ROI code), sections narratives VALIDÉES, textes fixes du modèle courant.
+  const { data: mesures } = await supabase
+    .from("mesures")
+    .select("nom, economies_annuelles, cout_investissement, subvention")
+    .eq("dossier_id", dossierId)
+    .order("ordre", { ascending: true })
+    .returns<Mesure[]>();
+
+  const { data: textesRows } = await supabase
+    .from("rapport_textes")
+    .select("section, texte")
+    .eq("dossier_id", dossierId)
+    .eq("valide", true);
+  const textes: Partial<Record<NarrativeSection, string>> = {};
+  for (const t of textesRows ?? []) {
+    if (t.texte) textes[t.section as NarrativeSection] = t.texte;
+  }
+
+  const { data: modeleRow } = await supabase
+    .from("report_templates")
+    .select("methodologie, norme_ashrae, risques_sse, version")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const modele: ModeleSnapshot = modeleRow ?? {
+    methodologie: null,
+    norme_ashrae: null,
+    risques_sse: null,
+    version: 0,
+  };
+
   const eqs = equipements ?? [];
   const completude = controleCompletude(eqs, dossier);
 
@@ -569,6 +749,9 @@ export async function soumettreDossier(formData: FormData) {
   const snapshot = construireSnapshot(dossier, eqs, {
     facteurGaz,
     totalFacturesKwh: totalFacturesKwh(factures ?? [], facteurGaz),
+    mesures: mesures ?? [],
+    textes,
+    modele,
   });
 
   const update: Record<string, unknown> = {

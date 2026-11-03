@@ -5,7 +5,11 @@
 // SWAP MODÈLE (Phase ultérieure) : remplacer rapport-provisoire.docx par le VRAI modèle
 // Word de Luis portant les MÊMES placeholders ({client}, {adresse}, {statut}, le sommaire
 // {sommaire_texte}/{total_kwh}/{intensite}/{gaz_kwh}, la boucle {#bilan_postes}…{/bilan_postes}
-// et {#equipements}…{/equipements}). Aucune autre ligne de code à changer.
+// et {#equipements}…{/equipements}). Phase 7 ajoute : {description_installations},
+// {mesures_mise_en_forme}, {problemes_techniques}, {phasage_travaux}, {risques_sse},
+// {conclusions} ; la boucle {#mesures}…{/mesures} (nom, economies_annuelles, cout_investissement,
+// subvention, retour_annees) ; les textes fixes {methodologie}/{norme_ashrae}/{modele_risques_sse}
+// et « Modèle v{modele_version} ». Aucune autre ligne de code à changer.
 // ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 //
 // Régénérer : `node scripts/build-template.mjs`
@@ -56,6 +60,29 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${p("{#equipements}")}
     ${p("- {nom} : {puissance_valeur} {puissance_unite} → {conso_kwh_an} kWh/an")}
     ${p("{/equipements}")}
+    ${p("")}
+    ${p("Description des installations :")}
+    ${p("{description_installations}")}
+    ${p("")}
+    ${p("Mesures d'amélioration :")}
+    ${p("{#mesures}")}
+    ${p("- {nom} : économies {economies_annuelles} $/an, investissement {cout_investissement} $, subvention {subvention} $ → retour {retour_annees} ans")}
+    ${p("{/mesures}")}
+    ${p("{mesures_mise_en_forme}")}
+    ${p("")}
+    ${p("Problèmes techniques :")}
+    ${p("{problemes_techniques}")}
+    ${p("Phasage des travaux :")}
+    ${p("{phasage_travaux}")}
+    ${p("Risques SSE :")}
+    ${p("{risques_sse}")}
+    ${p("Conclusions :")}
+    ${p("{conclusions}")}
+    ${p("")}
+    ${p("Méthodologie : {methodologie}")}
+    ${p("Norme ASHRAE : {norme_ashrae}")}
+    ${p("Risques SSE génériques : {modele_risques_sse}")}
+    ${p("Modèle v{modele_version}")}
     <w:sectPr/>
   </w:body>
 </w:document>`;

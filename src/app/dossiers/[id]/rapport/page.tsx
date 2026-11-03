@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { soumettreDossier, approuverDossier, renvoyerDossier } from "../../actions";
+import {
+  soumettreDossier,
+  approuverDossier,
+  renvoyerDossier,
+  updateTexteSection,
+  validerTexteSection,
+  redigerSection,
+} from "../../actions";
 import {
   bilanEnergetique,
   gazEnKwh,
@@ -16,7 +23,7 @@ import {
   sommaireExecutif,
   type EquipementAssembleur,
 } from "@/lib/assembleur";
-import { SECTIONS } from "@/lib/statuts";
+import { SECTIONS, NARRATIVE_SECTIONS, type NarrativeSection } from "@/lib/statuts";
 import { totalFacturesKwh, type Facture } from "@/lib/factures";
 import type { Snapshot } from "@/lib/rapport";
 import { Button, StatusChip } from "@/components/ui";
@@ -312,6 +319,69 @@ function ApprobationSection({
   );
 }
 
+// Une section narrative : textarea éditable + (si IA) bouton brouillon + bouton valider.
+function SectionNarrative({
+  id,
+  meta,
+  actuel,
+}: {
+  id: string;
+  meta: (typeof NARRATIVE_SECTIONS)[number];
+  actuel: { texte: string | null; source: string; valide: boolean } | undefined;
+}) {
+  const section = meta.cle as NarrativeSection;
+  const rediger = redigerSection.bind(null, id, section);
+  const valider = validerTexteSection.bind(null, id, section);
+
+  return (
+    <div className="border border-border rounded-lg bg-surface p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-medium text-ink">{meta.label}</h3>
+          {meta.source === "ia" && <span className="text-[11px] text-muted border border-border rounded px-1.5 py-0.5">IA</span>}
+          {actuel?.source === "ia" && !actuel.valide && (
+            <StatusChip status="a_confirmer" />
+          )}
+          {actuel?.valide && <StatusChip status="valide" />}
+        </div>
+        {meta.source === "ia" && (
+          <form action={rediger}>
+            <Button type="submit" variant="secondary">
+              Rédiger un brouillon (IA)
+            </Button>
+          </form>
+        )}
+      </div>
+
+      <form action={updateTexteSection} className="space-y-3">
+        <input type="hidden" name="dossier_id" value={id} />
+        <input type="hidden" name="section" value={section} />
+        <textarea
+          name="texte"
+          rows={5}
+          defaultValue={actuel?.texte ?? ""}
+          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-ink"
+        />
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="checkbox" name="valide" defaultChecked={actuel?.valide ?? false} />
+            Validée (entre dans le rapport)
+          </label>
+          <Button type="submit" variant="secondary">
+            Enregistrer
+          </Button>
+        </div>
+      </form>
+
+      {actuel?.source === "ia" && !actuel.valide && (
+        <form action={valider}>
+          <Button type="submit">Valider ce brouillon</Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // ───────────────────────── Rapport en direct (brouillon/a_corriger) ─────────────────────────
 async function LiveReport({
   id,
@@ -372,6 +442,14 @@ async function LiveReport({
     seuilCoherence,
   );
   const sommaire = sommaireExecutif({ dossier, bilan, intensite, gazKwh });
+
+  // Sections narratives (Phase 7) : textes existants indexés par section.
+  const { data: textesRows } = await supabase
+    .from("rapport_textes")
+    .select("section, texte, source, valide")
+    .eq("dossier_id", id);
+  const textes: Record<string, { texte: string | null; source: string; valide: boolean }> = {};
+  for (const t of textesRows ?? []) textes[t.section] = t;
 
   const commentaires = dossier.commentaires ?? {};
 
@@ -464,6 +542,24 @@ async function LiveReport({
       <section>
         <h2 className="text-[15px] font-semibold text-ink mb-3">Sommaire exécutif</h2>
         <BilanEtSommaire sommaire={sommaire} bilan={bilan} />
+      </section>
+
+      {/* Sections narratives (Phase 7, US-41/42/43) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold text-ink">Sections narratives</h2>
+          <Link href={`/dossiers/${id}/mesures`} className="text-sm text-primary underline">
+            Mesures d'amélioration →
+          </Link>
+        </div>
+        <p className="text-sm text-muted">
+          L'IA propose un brouillon pour les sections marquées « IA » à partir des seuls éléments
+          validés ; vous relisez, corrigez et validez. Seules les sections validées entrent dans le
+          rapport. Les autres sont saisies à la main.
+        </p>
+        {NARRATIVE_SECTIONS.map((s) => (
+          <SectionNarrative key={s.cle} id={id} meta={s} actuel={textes[s.cle]} />
+        ))}
       </section>
 
       {/* Soumettre */}

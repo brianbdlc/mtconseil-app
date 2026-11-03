@@ -11,6 +11,8 @@ import {
   type LigneBilan,
 } from "./calc.ts";
 import { sommaireExecutif } from "./assembleur.ts";
+import { retourAnnees, investissementNet, type Mesure } from "./mesures.ts";
+import type { NarrativeSection } from "./statuts.ts";
 
 type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
 
@@ -36,10 +38,23 @@ export type DossierSnapshot = {
   gaz_periode: string | null;
 };
 
+export type ModeleSnapshot = {
+  methodologie: string | null;
+  norme_ashrae: string | null;
+  risques_sse: string | null;
+  version: number;
+};
+
 export function construireSnapshot(
   dossier: DossierSnapshot,
   equipements: EquipementSnapshot[],
-  parametres: { facteurGaz: number | null; totalFacturesKwh: number | null },
+  parametres: {
+    facteurGaz: number | null;
+    totalFacturesKwh: number | null;
+    mesures: Mesure[];
+    textes: Partial<Record<NarrativeSection, string>>; // seulement les sections valide=true
+    modele: ModeleSnapshot;
+  },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
   const gazKwh =
@@ -79,6 +94,23 @@ export function construireSnapshot(
       type_facteur_charge: e.type?.facteur_charge ?? null,
       type_poste: e.type?.poste ?? null,
     })),
+    // Phase 7 : ROI calculé par le CODE (zéro valeur inventée), sections narratives VALIDÉES,
+    // textes fixes du modèle GELÉS + leur n° de version (porté sur rapport_versions à l'export).
+    mesures: parametres.mesures.map((m) => ({
+      nom: m.nom,
+      economies_annuelles: m.economies_annuelles,
+      cout_investissement: m.cout_investissement,
+      subvention: m.subvention,
+      net: investissementNet(m),
+      retour_annees: retourAnnees(m),
+    })),
+    textes: parametres.textes,
+    modele: {
+      methodologie: parametres.modele.methodologie,
+      norme_ashrae: parametres.modele.norme_ashrae,
+      risques_sse: parametres.modele.risques_sse,
+    },
+    modele_version: parametres.modele.version,
   };
 }
 

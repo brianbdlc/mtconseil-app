@@ -179,10 +179,12 @@ L'ingénieur remplit à la main le tableau des mesures (nom, économies, coût, 
 
 ### Critères d'acceptation
 
-- [ ] Tableau des mesures saisi à la main ; code calcule le ROI (tests à assertions) ; aucune mesure/économie inventée.
-- [ ] Brouillon IA de la description des installations à partir des fiches validées, style ancien rapport.
-- [ ] Mise en forme IA des mesures/conclusions décidées par l'ingénieur ; sections de jugement à la main.
-- [ ] Textes fixes du modèle éditables par l'admin ; numéro de version du modèle inscrit sur chaque rapport.
+- [x] Tableau des mesures saisi à la main (`/dossiers/[id]/mesures`, table `mesures`) ; le code calcule le retour simple (`src/lib/mesures.ts`, `retourAnnees` = net ÷ économies ; `null` si économies ≤ 0 ou net ≤ 0) ; tests à assertions (`mesures.test.ts`) ; aucune mesure/économie inventée.
+- [x] Brouillon IA de la description des installations à partir des **fiches validées uniquement** (`extraireFichesValidees` + `redigerDescriptionInstallations`, `src/lib/redaction.ts`), **gâté `ALLOW_REDACTION_AI`** (Loi 25) ; prompt générique (style affiné plus tard avec exemples anonymisés de Luis).
+- [x] Mise en forme IA des mesures décidées par l'ingénieur (`mettreEnFormeMesures`, ne recalcule/invente rien) ; sections de jugement (problèmes, phasage, risques SSE, conclusions) saisies à la main ; brouillon IA = `source='ia'`, `valide=false` à relire et valider.
+- [x] Textes fixes du modèle éditables par l'admin (`/admin/modele`, table `report_templates`, RLS `is_admin()`) ; version incrémentée à chaque édition ; texte + n° de version **gelés** dans le snapshot et portés sur `rapport_versions.modele_version` à l'export.
+
+> Vérifié : `npm test` (49 ✓, dont `mesures.test.ts`) ; `npm run build` OK ; migration `20261101000004` appliquée sur DEV (`mesures`/`rapport_textes`/`report_templates` RLS active, `get_advisors` sans alerte RLS nouvelle). IA de rédaction **construite mais gâtée OFF** par défaut.
 
 ## Bloquée par
 

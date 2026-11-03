@@ -14,6 +14,15 @@ const dossier: DossierSnapshot = {
   gaz_periode: null,
 };
 
+// Params Phase 7 par défaut (vides) — les tests ciblent le gel équipements/bilan.
+const extra = {
+  facteurGaz: null,
+  totalFacturesKwh: null,
+  mesures: [],
+  textes: {},
+  modele: { methodologie: null, norme_ashrae: null, risques_sse: null, version: 1 },
+};
+
 function eq(facteur: number): EquipementSnapshot {
   return {
     nom: "Chaudière",
@@ -27,7 +36,7 @@ function eq(facteur: number): EquipementSnapshot {
 }
 
 test("le snapshot fige conso + type (facteur/poste) par équipement", () => {
-  const snap = construireSnapshot(dossier, [eq(0.5)], { facteurGaz: null, totalFacturesKwh: null });
+  const snap = construireSnapshot(dossier, [eq(0.5)], extra);
   assert.equal(snap.equipements[0].conso, 10 * 1000 * 0.5);
   assert.equal(snap.equipements[0].type_facteur_charge, 0.5);
   assert.equal(snap.equipements[0].type_poste, "chauffage");
@@ -36,12 +45,12 @@ test("le snapshot fige conso + type (facteur/poste) par équipement", () => {
 
 test("un changement ultérieur d'un équipement ne modifie pas le snapshot sérialisé (gel)", () => {
   const equipements = [eq(0.5)];
-  const fige = JSON.stringify(construireSnapshot(dossier, equipements, { facteurGaz: null, totalFacturesKwh: null }));
+  const fige = JSON.stringify(construireSnapshot(dossier, equipements, extra));
   // L'équipement vivant change APRÈS le gel : le snapshot déjà sérialisé reste identique.
   equipements[0].type!.facteur_charge = 0.9;
   equipements[0].puissance_valeur = 999;
   assert.equal(fige, JSON.stringify(JSON.parse(fige)));
   // Et un nouveau snapshot refléterait bien le changement (preuve que le gel vient de la sérialisation).
-  const apres = construireSnapshot(dossier, equipements, { facteurGaz: null, totalFacturesKwh: null });
+  const apres = construireSnapshot(dossier, equipements, extra);
   assert.notEqual(JSON.stringify(apres), fige);
 });

@@ -33,9 +33,14 @@ export async function AppHeader() {
           Valeurs par défaut
         </Link>
         {isAdmin && (
-          <Link href="/admin/parametres" className="text-sm text-muted hover:text-ink">
-            Paramètres
-          </Link>
+          <>
+            <Link href="/admin/parametres" className="text-sm text-muted hover:text-ink">
+              Paramètres
+            </Link>
+            <Link href="/admin/modele" className="text-sm text-muted hover:text-ink">
+              Modèle
+            </Link>
+          </>
         )}
       </nav>
       <form action={signOut}>
