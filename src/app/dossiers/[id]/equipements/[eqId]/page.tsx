@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateEquipement, lirePlaqueAction, validerChamp } from "../../../actions";
 import { UNITES, libellePoste, ligneEquipement } from "@/lib/calc";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
+import { VerrouFiche } from "@/components/verrou-fiche";
 
 // Chip d'état d'un champ IA : validé > confiance de lecture > à valider.
 function etatChamp(validated: boolean, confiance: string | null): string {
@@ -55,6 +56,7 @@ export default async function EquipementPage({
 
   return (
     <div className="max-w-xl space-y-6">
+      <VerrouFiche ressource={`equipement:${eqId}`} />
       <Link href={`/dossiers/${id}`} className="text-xs text-muted hover:text-ink">
         ← Dossier
       </Link>

@@ -20,9 +20,43 @@ import {
   redigerDescriptionInstallations,
   mettreEnFormeMesures,
 } from "@/lib/redaction";
+import { envoyerCourriel, lienDossier } from "@/lib/courriel";
+import { DUREE_VERROU_MS, etatVerrou, type EtatVerrou } from "@/lib/verrou";
 
 function strOrNull(v: FormDataEntryValue | null): string | null {
   return String(v ?? "").trim() || null;
+}
+
+// Garde-fou capacité (miroir du check is_admin déjà utilisé) : la RLS est le vrai rempart,
+// ceci donne un message clair avant l'écriture. cap ∈ 'modifier'|'valider'|'exporter'.
+async function exige(cap: "modifier" | "valider" | "exporter") {
+  const supabase = await createClient();
+  const { data: ok } = await supabase.rpc(`peut_${cap}`);
+  if (!ok) {
+    const quoi =
+      cap === "modifier" ? "modifier" : cap === "valider" ? "valider" : "exporter";
+    throw new Error(`Droit insuffisant : vous ne pouvez pas ${quoi} (voir un administrateur).`);
+  }
+}
+
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
+// Notifie l'ingénieur du dossier (best-effort). Join email via la FK dossiers_ingenieur_id_fkey.
+async function notifierIngenieur(
+  supabase: DbClient,
+  dossierId: string,
+  sujet: (client: string) => string,
+  html: (client: string, lien: string) => string,
+) {
+  const { data: d } = await supabase
+    .from("dossiers")
+    .select("client, ingenieur:profiles!dossiers_ingenieur_id_fkey(email)")
+    .eq("id", dossierId)
+    .single();
+  if (!d) return;
+  const ing = d.ingenieur as unknown as { email: string | null } | { email: string | null }[] | null;
+  const email = (Array.isArray(ing) ? ing[0]?.email : ing?.email) ?? null;
+  await envoyerCourriel({ to: email, sujet: sujet(d.client), html: html(d.client, lienDossier(dossierId)) });
 }
 
 // Champs IA validables champ par champ (US-17/18). marque/modele/annee ont leur propre colonne ;
@@ -56,6 +90,7 @@ export async function createDossier(formData: FormData) {
 }
 
 export async function createEquipement(formData: FormData) {
+  await exige("modifier");
   const dossierId = String(formData.get("dossier_id"));
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -69,6 +104,7 @@ export async function createEquipement(formData: FormData) {
 }
 
 export async function updateEquipement(formData: FormData) {
+  await exige("modifier");
   const id = String(formData.get("id"));
   const dossierId = String(formData.get("dossier_id"));
   const nom = strOrNull(formData.get("nom"));
@@ -184,6 +220,7 @@ export async function assignerGroupe(input: {
   nouvelEquipementNom?: string | null;
   photos: { id: string; nom_affichage: string | null }[];
 }) {
+  await exige("modifier");
   const supabase = await createClient();
 
   let equipementId = input.equipementId ?? null;
@@ -283,6 +320,7 @@ export async function lirePlaqueAction(equipementId: string, dossierId: string) 
 
 /** Validation champ par champ (US-18), jamais en bloc : pose {champ}_validated = true. */
 export async function validerChamp(equipementId: string, dossierId: string, champ: ChampIA) {
+  await exige("valider");
   if (!CHAMPS_IA.includes(champ)) throw new Error(`Champ inconnu : ${champ}`);
   const supabase = await createClient();
   const { error } = await supabase
@@ -351,6 +389,7 @@ export async function lireFactureAction(factureId: string, dossierId: string) {
  * Le CHECK factures_confirme_complet garantit qu'une confirmée porte energie + conso + unité.
  */
 export async function updateFacture(formData: FormData) {
+  await exige("modifier");
   const id = strOrNull(formData.get("id")); // null = création
   const dossierId = String(formData.get("dossier_id"));
   const row = {
@@ -375,6 +414,7 @@ export async function updateFacture(formData: FormData) {
 
 /** Confirme une proposition IA après revue de l'ingénieur (US-32). */
 export async function confirmerFacture(factureId: string, dossierId: string) {
+  await exige("modifier");
   const supabase = await createClient();
   const { error } = await supabase.from("factures").update({ confirme: true }).eq("id", factureId);
   if (error) throw new Error(error.message);
@@ -386,6 +426,7 @@ export async function confirmerFacture(factureId: string, dossierId: string) {
 
 /** Création / édition d'une mesure (create si id vide). */
 export async function updateMesure(formData: FormData) {
+  await exige("modifier");
   const id = strOrNull(formData.get("id"));
   const dossierId = String(formData.get("dossier_id"));
   const row = {
@@ -405,6 +446,7 @@ export async function updateMesure(formData: FormData) {
 }
 
 export async function supprimerMesure(mesureId: string, dossierId: string) {
+  await exige("modifier");
   const supabase = await createClient();
   const { error } = await supabase.from("mesures").delete().eq("id", mesureId);
   if (error) throw new Error(error.message);
@@ -417,6 +459,7 @@ export async function supprimerMesure(mesureId: string, dossierId: string) {
 
 /** Saisie/édition manuelle d'une section → source='humain'. Modifier un brouillon le dévalide. */
 export async function updateTexteSection(formData: FormData) {
+  await exige("modifier");
   const dossierId = String(formData.get("dossier_id"));
   const section = String(formData.get("section")) as NarrativeSection;
   if (!NARRATIVE_SECTIONS.some((s) => s.cle === section)) {
@@ -436,6 +479,7 @@ export async function updateTexteSection(formData: FormData) {
 
 /** Marque une section comme validée (entre dans le snapshot). */
 export async function validerTexteSection(dossierId: string, section: NarrativeSection) {
+  await exige("valider");
   const supabase = await createClient();
   const { error } = await supabase
     .from("rapport_textes")
@@ -648,6 +692,7 @@ export async function updateParametre(formData: FormData) {
 // ───────────────────────── Description du bâtiment (US-25→29) ─────────────────────────
 
 export async function updateBatiment(formData: FormData) {
+  await exige("modifier");
   const dossierId = String(formData.get("dossier_id"));
   const supabase = await createClient();
 
@@ -779,6 +824,21 @@ export async function soumettreDossier(formData: FormData) {
   const { error } = await supabase.from("dossiers").update(update).eq("id", dossierId);
   if (error) throw new Error(error.message);
 
+  // Notifier les admins actifs (best-effort). Lien vers le dossier.
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("role", "admin")
+    .eq("actif", true);
+  const lien = lienDossier(dossierId);
+  for (const a of admins ?? []) {
+    await envoyerCourriel({
+      to: a.email,
+      sujet: `Dossier ${dossier.client} soumis`,
+      html: `<p>Le dossier <strong>${dossier.client}</strong> a été soumis pour approbation.</p><p><a href="${lien}">Ouvrir le dossier</a></p>`,
+    });
+  }
+
   revalidatePath(`/dossiers/${dossierId}`);
   revalidatePath(`/dossiers/${dossierId}/rapport`);
   redirect(`/dossiers/${dossierId}/rapport`);
@@ -798,6 +858,14 @@ export async function approuverDossier(dossierId: string, valeurIds: string[]) {
     p_valeurs: valeurIds,
   });
   if (error) throw new Error(error.message);
+
+  await notifierIngenieur(
+    supabase,
+    dossierId,
+    (client) => `Dossier ${client} approuvé`,
+    (client, lien) =>
+      `<p>Votre dossier <strong>${client}</strong> a été approuvé.</p><p><a href="${lien}">Ouvrir le dossier</a></p>`,
+  );
 
   revalidatePath(`/dossiers/${dossierId}`);
   revalidatePath(`/dossiers/${dossierId}/rapport`);
@@ -827,9 +895,134 @@ export async function renvoyerDossier(dossierId: string, commentaires: Record<st
     .eq("id", dossierId);
   if (error) throw new Error(error.message);
 
+  await notifierIngenieur(
+    supabase,
+    dossierId,
+    (client) => `Dossier ${client} à corriger`,
+    (client, lien) =>
+      `<p>Votre dossier <strong>${client}</strong> est renvoyé pour correction. Les commentaires sont consultables dans l'application.</p><p><a href="${lien}">Ouvrir le dossier</a></p>`,
+  );
+
   revalidatePath(`/dossiers/${dossierId}`);
   revalidatePath(`/dossiers/${dossierId}/rapport`);
   redirect(`/dossiers/${dossierId}/rapport`);
+}
+
+// ───────────────────────── Gestion des comptes (Phase 8, admin) ─────────────────────────
+// Édite role/actif/droits d'un profil existant. RLS profiles_update = is_admin() (vrai rempart).
+// Pas de création de compte in-app (pas de service-role) : nouveaux comptes via dashboard Supabase.
+
+export async function majCompte(formData: FormData) {
+  const id = String(formData.get("id"));
+  const supabase = await createClient();
+  const { data: rows, error } = await supabase
+    .from("profiles")
+    .update({
+      role: formData.get("role") === "admin" ? "admin" : "engineer",
+      actif: formData.get("actif") === "on",
+      peut_modifier: formData.get("peut_modifier") === "on",
+      peut_valider: formData.get("peut_valider") === "on",
+      peut_exporter: formData.get("peut_exporter") === "on",
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!rows || rows.length === 0) {
+    throw new Error("Écriture refusée : la gestion des comptes est réservée aux administrateurs.");
+  }
+  revalidatePath("/admin/comptes");
+  redirect("/admin/comptes");
+}
+
+// ───────────────────────── Verrou d'édition advisoire (Phase 8, US-6) ─────────────────────────
+// Advisoire : avertit, ne bloque pas. Alimente le composant client verrou-fiche.tsx (d'où le retour
+// non-void). acquerirVerrou (ré)acquiert si libre/à moi (sert aussi de heartbeat au poll ~20 s).
+
+type ReponseVerrou = { etat: EtatVerrou; detenteurEmail?: string | null; estAdmin: boolean };
+
+export async function acquerirVerrou(ressource: string): Promise<ReponseVerrou> {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  const moi = user.user?.id ?? null;
+
+  const [{ data: row }, { data: estAdmin }] = await Promise.all([
+    supabase.from("verrous").select("detenteur, expire_le").eq("ressource", ressource).maybeSingle(),
+    supabase.rpc("is_admin"),
+  ]);
+
+  const etat = etatVerrou(row, moi, Date.now());
+  if (etat === "autrui") {
+    const { data: det } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", row!.detenteur)
+      .maybeSingle();
+    return { etat, detenteurEmail: det?.email ?? null, estAdmin: !!estAdmin };
+  }
+
+  // libre (jamais posé ou expiré) ou à moi → (ré)acquérir et étendre l'expiration.
+  const now = Date.now();
+  const { error } = await supabase.from("verrous").upsert(
+    {
+      ressource,
+      detenteur: moi,
+      detenu_le: new Date(now).toISOString(),
+      expire_le: new Date(now + DUREE_VERROU_MS).toISOString(),
+    },
+    { onConflict: "ressource" },
+  );
+  if (error) throw new Error(error.message);
+  return { etat: "a_moi", estAdmin: !!estAdmin };
+}
+
+export async function libererVerrou(ressource: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  // RLS : ne supprime que mon verrou (ou expiré). Pas de .eq detenteur → la RLS tranche.
+  await supabase.from("verrous").delete().eq("ressource", ressource).eq("detenteur", user.user?.id ?? "");
+}
+
+export async function forcerVerrou(ressource: string): Promise<ReponseVerrou> {
+  // Admin : écrase le détenteur sans condition (acquerirVerrou laisserait un verrou d'autrui
+  // non expiré intact). RLS verrous_update/insert accepte is_admin().
+  const supabase = await createClient();
+  const { data: user } = await supabase.auth.getUser();
+  const now = Date.now();
+  const { error } = await supabase.from("verrous").upsert(
+    {
+      ressource,
+      detenteur: user.user?.id ?? null,
+      detenu_le: new Date(now).toISOString(),
+      expire_le: new Date(now + DUREE_VERROU_MS).toISOString(),
+    },
+    { onConflict: "ressource" },
+  );
+  if (error) throw new Error(error.message);
+  return { etat: "a_moi", estAdmin: true };
+}
+
+// ───────────────────────── Suppression de dossier (Phase 8, admin) ─────────────────────────
+// Purge les fichiers des 3 buckets (préfixe {dossierId}/), puis delete dossiers (cascade DB +
+// trigger d'audit DELETE). RLS dossiers_delete + *_objects_delete = is_admin().
+
+export async function supprimerDossier(formData: FormData) {
+  const dossierId = String(formData.get("dossier_id"));
+  const supabase = await createClient();
+
+  const { data: estAdmin } = await supabase.rpc("is_admin");
+  if (!estAdmin) throw new Error("Suppression réservée aux administrateurs.");
+
+  for (const bucket of ["photos", "factures", "rapports"] as const) {
+    const { data: fichiers } = await supabase.storage.from(bucket).list(dossierId);
+    const chemins = (fichiers ?? []).map((f) => `${dossierId}/${f.name}`);
+    if (chemins.length) await supabase.storage.from(bucket).remove(chemins);
+  }
+
+  const { error } = await supabase.from("dossiers").delete().eq("id", dossierId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dossiers");
+  redirect("/dossiers");
 }
 
 export async function signOut() {

@@ -27,6 +27,7 @@ import { SECTIONS, NARRATIVE_SECTIONS, type NarrativeSection } from "@/lib/statu
 import { totalFacturesKwh, type Facture } from "@/lib/factures";
 import type { Snapshot } from "@/lib/rapport";
 import { Button, StatusChip } from "@/components/ui";
+import { VerrouFiche } from "@/components/verrou-fiche";
 
 function fmt(n: number | null): string {
   if (n === null || n === undefined) return "—";
@@ -116,6 +117,7 @@ export default async function RapportPage({
 
   return (
     <div className="space-y-8">
+      <VerrouFiche ressource={`rapport:${id}`} />
       <div>
         <Link href={`/dossiers/${id}`} className="text-xs text-muted hover:text-ink">
           ← {dossier.client}

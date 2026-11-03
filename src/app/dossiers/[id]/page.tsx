@@ -11,6 +11,7 @@ import {
   type LigneBilan,
 } from "@/lib/calc";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
+import { VerrouFiche } from "@/components/verrou-fiche";
 
 type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
 
@@ -89,6 +90,7 @@ export default async function DossierPage({
 
   return (
     <div className="space-y-8">
+      <VerrouFiche ressource={`batiment:${id}`} />
       <div>
         <Link href="/dossiers" className="text-xs text-muted hover:text-ink">
           ← Dossiers

@@ -11,6 +11,7 @@ import {
 } from "@/lib/factures";
 import { updateFacture, lireFactureAction, confirmerFacture } from "../../actions";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
+import { VerrouFiche } from "@/components/verrou-fiche";
 
 const BUCKET = "factures";
 
@@ -125,6 +126,7 @@ export default function FacturesPage() {
 
   return (
     <div className="space-y-8">
+      <VerrouFiche ressource={`facture:${dossierId}`} />
       <div>
         <Link href={`/dossiers/${dossierId}`} className="text-xs text-muted hover:text-ink">
           ← Dossier

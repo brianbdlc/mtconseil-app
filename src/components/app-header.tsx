@@ -40,6 +40,9 @@ export async function AppHeader() {
             <Link href="/admin/modele" className="text-sm text-muted hover:text-ink">
               Modèle
             </Link>
+            <Link href="/admin/comptes" className="text-sm text-muted hover:text-ink">
+              Comptes
+            </Link>
           </>
         )}
       </nav>
