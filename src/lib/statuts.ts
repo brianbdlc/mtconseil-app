@@ -5,6 +5,19 @@
 export const SECTIONS = ["general", "sommaire", "inventaire", "bilan", "description"] as const;
 export type Section = (typeof SECTIONS)[number];
 
+// Sections narratives du rapport (Phase 7). Liste fixe REDITE dans le CHECK de rapport_textes
+// (migration phase7) — garder les deux en phase. `ia` = brouillon possible via redaction.ts ;
+// `humain` = jugement de l'ingénieur, saisi à la main (jamais d'IA).
+export const NARRATIVE_SECTIONS = [
+  { cle: "description_installations", label: "Description des installations", source: "ia" },
+  { cle: "mesures_mise_en_forme", label: "Mesures d'amélioration (mise en forme)", source: "ia" },
+  { cle: "problemes_techniques", label: "Problèmes techniques", source: "humain" },
+  { cle: "phasage_travaux", label: "Phasage des travaux", source: "humain" },
+  { cle: "risques_sse", label: "Risques SSE", source: "humain" },
+  { cle: "conclusions", label: "Conclusions", source: "humain" },
+] as const;
+export type NarrativeSection = (typeof NARRATIVE_SECTIONS)[number]["cle"];
+
 export type Statut = "brouillon" | "soumis" | "approuve" | "exporte" | "a_corriger";
 
 // Transitions initiées par un humain (quels boutons afficher). Le retour auto
