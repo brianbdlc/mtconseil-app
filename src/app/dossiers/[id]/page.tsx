@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createEquipement, updateBatiment } from "../actions";
+import { createEquipement, updateBatiment, updateZone, supprimerZone } from "../actions";
 import {
   bilanEnergetique,
   gazEnKwh,
@@ -65,6 +65,13 @@ export default async function DossierPage({
     .select("valeur, confirme")
     .eq("cle", "facteur_conversion_gaz")
     .maybeSingle();
+
+  // Phase 9 : zones descriptives (hors calcul).
+  const { data: zones } = await supabase
+    .from("zones")
+    .select("id, nom, superficie, unite")
+    .eq("dossier_id", id)
+    .order("ordre", { ascending: true });
 
   const eqs = equipements ?? [];
   const lignes = eqs.map((e) => ligneEquipement(e));
@@ -206,6 +213,76 @@ export default async function DossierPage({
 
           <Button type="submit">Enregistrer</Button>
         </form>
+      </section>
+
+      {/* Zones du bâtiment (US-53) — descriptif, hors calcul */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-ink">Zones du bâtiment</h2>
+            <p className="text-xs text-muted">Descriptif — n&apos;entre pas dans le calcul d&apos;intensité.</p>
+          </div>
+          <form action={updateZone}>
+            <input type="hidden" name="dossier_id" value={id} />
+            <Button type="submit">+ Ajouter une zone</Button>
+          </form>
+        </div>
+
+        <div className="overflow-x-auto border border-border rounded-lg bg-surface">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted border-b border-border">
+                <th className="px-4 py-2 font-medium">Zone</th>
+                <th className="px-4 py-2 font-medium">Superficie</th>
+                <th className="px-4 py-2 font-medium">Unité</th>
+                <th className="px-4 py-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(zones ?? []).map((z) => (
+                <tr key={z.id} className="border-b border-border last:border-0 align-top">
+                  <td className="px-4 py-2">
+                    <form id={`zone-${z.id}`} action={updateZone} className="contents">
+                      <input type="hidden" name="id" value={z.id} />
+                      <input type="hidden" name="dossier_id" value={id} />
+                      <Input name="nom" defaultValue={z.nom ?? ""} form={`zone-${z.id}`} />
+                    </form>
+                  </td>
+                  <td className="px-4 py-2">
+                    <Input
+                      name="superficie"
+                      className="tabular-nums"
+                      defaultValue={z.superficie ?? ""}
+                      form={`zone-${z.id}`}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <Select name="unite" defaultValue={z.unite ?? ""} form={`zone-${z.id}`}>
+                      <option value="">—</option>
+                      <option value="m2">m²</option>
+                      <option value="pi2">pi²</option>
+                    </Select>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-2">
+                      <Button type="submit" form={`zone-${z.id}`}>Enregistrer</Button>
+                      <form action={supprimerZone.bind(null, z.id, id)}>
+                        <Button type="submit" variant="secondary">Supprimer</Button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {(zones ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-muted">
+                    Aucune zone.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section>

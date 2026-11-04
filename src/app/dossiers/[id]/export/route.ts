@@ -5,6 +5,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { createClient } from "@/lib/supabase/server";
 import { libellePoste } from "@/lib/calc";
+import { sommeSuperficieZonesM2 } from "@/lib/zones";
 import type { Snapshot } from "@/lib/rapport";
 
 // ponytail: export docx SYNCHRONE + dépôt Storage + versionnage (Phase 5, US-48) — c'est la
@@ -56,6 +57,13 @@ function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
           ? "—"
           : new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(m.retour_annees),
     })),
+    // Phase 9 : zones descriptives (hors calcul) + total informatif.
+    zones: snapshot.zones.map((z) => ({
+      nom_zone: z.nom ?? "",
+      superficie_zone: fmt(z.superficie),
+      unite_zone: z.unite === "pi2" ? "pi²" : z.unite === "m2" ? "m²" : "",
+    })),
+    zones_total_m2: fmt(sommeSuperficieZonesM2(snapshot.zones)),
     description_installations: snapshot.textes.description_installations ?? "",
     mesures_mise_en_forme: snapshot.textes.mesures_mise_en_forme ?? "",
     problemes_techniques: snapshot.textes.problemes_techniques ?? "",

@@ -15,6 +15,7 @@ import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
 import { lireFacture, totalFacturesKwh, type Facture } from "@/lib/factures";
 import { retourAnnees, type Mesure } from "@/lib/mesures";
+import { type Zone } from "@/lib/zones";
 import {
   extraireFichesValidees,
   redigerDescriptionInstallations,
@@ -453,6 +454,38 @@ export async function supprimerMesure(mesureId: string, dossierId: string) {
   revalidatePath(`/dossiers/${dossierId}/mesures`);
 }
 
+// ───────────────────────── Zones du bâtiment (Phase 9, US-53) ─────────────────────────
+// Saisie INGÉNIEUR, purement DESCRIPTIVE : les zones n'entrent dans AUCUN calcul (l'intensité
+// reste basée sur la superficie TOTALE, Phase 3). CRUD inline dans la page dossier.
+
+/** Création / édition d'une zone (create si id vide). */
+export async function updateZone(formData: FormData) {
+  await exige("modifier");
+  const id = strOrNull(formData.get("id"));
+  const dossierId = String(formData.get("dossier_id"));
+  const row = {
+    nom: strOrNull(formData.get("nom")),
+    superficie: numFr(formData.get("superficie")),
+    unite: strOrNull(formData.get("unite")),
+  };
+
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("zones").update(row).eq("id", id)
+    : await supabase.from("zones").insert({ ...row, dossier_id: dossierId });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+export async function supprimerZone(zoneId: string, dossierId: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const { error } = await supabase.from("zones").delete().eq("id", zoneId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
 // ───────────────────────── Sections narratives (Phase 7, US-41/42/43) ─────────────────────────
 // L'IA RÉDIGE un brouillon (source='ia', valide=false) sous validation ; sinon saisie à la main.
 // L'assembleur ne lit QUE valide=true. upsert sur (dossier_id, section).
@@ -787,6 +820,14 @@ export async function soumettreDossier(formData: FormData) {
     version: 0,
   };
 
+  // Phase 9 : zones descriptives, gelées dans le snapshot (hors calcul).
+  const { data: zones } = await supabase
+    .from("zones")
+    .select("nom, superficie, unite")
+    .eq("dossier_id", dossierId)
+    .order("ordre", { ascending: true })
+    .returns<Zone[]>();
+
   const eqs = equipements ?? [];
   const completude = controleCompletude(eqs, dossier);
 
@@ -797,6 +838,7 @@ export async function soumettreDossier(formData: FormData) {
     mesures: mesures ?? [],
     textes,
     modele,
+    zones: zones ?? [],
   });
 
   const update: Record<string, unknown> = {

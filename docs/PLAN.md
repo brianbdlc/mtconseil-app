@@ -229,11 +229,11 @@ L'ingénieur saisit un tableau de zones (nom de zone, superficie) en plus de la 
 
 ### Critères d'acceptation
 
-- [ ] Migration **additive** : table `zones` (dossier_id, nom, superficie, unité) avec RLS ; aucune colonne existante touchée.
-- [ ] CRUD des zones dans la description du bâtiment, ouvert aux ingénieurs et **journalisé**.
-- [ ] La superficie totale (Phase 3) **reste** la source de l'intensité ; les zones n'entrent dans aucun calcul. $/pi² = coût total ÷ superficie totale quand des factures existent, « non disponible » sinon.
-- [ ] Tableau de zones rendu dans le `.docx` (code = source unique).
-- [ ] Test à assertions : l'intensité ne change pas selon les zones ; somme/affichage des superficies de zones correct.
+- [x] Migration **additive** : table `zones` (dossier_id, nom, superficie, unité) avec RLS ; aucune colonne existante touchée.
+- [x] CRUD des zones dans la description du bâtiment, ouvert aux ingénieurs et **journalisé**.
+- [~] La superficie totale (Phase 3) **reste** la source de l'intensité ; les zones n'entrent dans aucun calcul (fait + testé). `$/pi²` **reporté Phase 15** (aucune source de coût en base aujourd'hui — pas de code mort).
+- [x] Tableau de zones rendu dans le `.docx` (code = source unique).
+- [x] Test à assertions : l'intensité ne change pas selon les zones ; somme/affichage des superficies de zones correct.
 
 ## Bloquée par
 
