@@ -212,3 +212,171 @@ L'admin active les droits personne par personne (voir [défaut on] / modifier / 
 ## Bloquée par
 
 - Phase 1 (auth), Phase 5 (événements de statut pour les notifications).
+
+---
+
+> **Phases 9–15 — alignement sur le rapport réel (Andalos) et le flux Optima.** Ajouts **additifs** au découpage 1–8 (livré, intact). Toutes démarrables immédiatement sauf celles marquées « Bloquée par : réponse de Luis ». US-41/US-42 (rédaction IA) **reportées hors périmètre** : aucune nouvelle phase ; `src/lib/redaction.ts` reste construit mais **gâté OFF** (`ALLOW_REDACTION_AI`), remplacé par les emplacements de texte libre (Phase 13).
+
+---
+
+## Phase 9 : Tableau de zones du bâtiment
+
+**User stories** : US-53
+
+### Ce qu'on livre
+
+L'ingénieur saisit un tableau de zones (nom de zone, superficie) en plus de la superficie totale déjà gérée en Phase 3. La superficie **totale** reste la seule source de l'intensité (kWh/pi² et, si des factures sont présentes, $/pi²) ; les zones sont purement **descriptives** et apparaissent dans le rapport. Rendu dans le `.docx`.
+
+### Critères d'acceptation
+
+- [ ] Migration **additive** : table `zones` (dossier_id, nom, superficie, unité) avec RLS ; aucune colonne existante touchée.
+- [ ] CRUD des zones dans la description du bâtiment, ouvert aux ingénieurs et **journalisé**.
+- [ ] La superficie totale (Phase 3) **reste** la source de l'intensité ; les zones n'entrent dans aucun calcul. $/pi² = coût total ÷ superficie totale quand des factures existent, « non disponible » sinon.
+- [ ] Tableau de zones rendu dans le `.docx` (code = source unique).
+- [ ] Test à assertions : l'intensité ne change pas selon les zones ; somme/affichage des superficies de zones correct.
+
+## Bloquée par
+
+- Aucune — démarrable immédiatement (phases 1–8 livrées). S'appuie sur la description du bâtiment (Phase 3).
+
+---
+
+## Phase 10 : Distribution électrique
+
+**User stories** : US-54
+
+### Ce qu'on livre
+
+L'ingénieur documente l'alimentation du bâtiment : nombre d'entrées électriques, et pour chacune ampères et tension. Donnée descriptive, rendue dans le rapport.
+
+### Critères d'acceptation
+
+- [ ] Migration **additive** : table `distribution_electrique` (dossier_id, ampères, tension) + compteur d'entrées dérivé des lignes ; RLS.
+- [ ] CRUD (une ou plusieurs entrées) dans la description du bâtiment, **journalisé**.
+- [ ] Rendu dans le `.docx` (tableau distribution électrique).
+- [ ] Aucune valeur calculée ni devinée : saisie ingénieur pure.
+
+## Bloquée par
+
+- Aucune — démarrable immédiatement. S'appuie sur la description du bâtiment (Phase 3).
+
+---
+
+## Phase 11 : Registre des révisions + table des matières automatique
+
+**User stories** : US-59, US-60
+
+### Ce qu'on livre
+
+Un registre des révisions (numéro, date, description) tracé par l'ingénieur, rendu sur sa page du rapport. Et une table des matières **automatique** dans le `.docx` : les titres de sections sont stylés pour que Word génère la TOC.
+
+### Critères d'acceptation
+
+- [ ] Migration **additive** : table `revisions` (dossier_id, numero, date, description) avec RLS et **journal**.
+- [ ] CRUD du registre ; option de **pré-remplissage** depuis `rapport_versions` (chaque export = une ligne), description éditable à la main.
+- [ ] Page « registre des révisions » rendue dans le `.docx`, triée par numéro.
+- [ ] Table des matières **automatique** : champ TOC natif Word inséré + styles de titres appliqués ; se met à jour à l'ouverture (F9/au chargement). *ponytail : champ TOC natif, pas de TOC calculée à la main — ceiling : si Luis veut une TOC figée au rendu, la pré-générer deviendra nécessaire.*
+- [ ] Test à assertions : ordre des révisions ; présence des styles de titres sur les sections.
+
+## Bloquée par
+
+- Aucune — démarrable immédiatement. S'appuie sur l'export (Phase 1) et les versions (Phase 5).
+
+---
+
+## Phase 12 : Annexe Optima (upload PDF + insertion telle quelle)
+
+**User stories** : US-50, US-51
+
+### Ce qu'on livre
+
+L'ingénieur téléverse le PDF d'Optima dans le dossier (bucket privé). **L'app ne le lit ni ne le calcule.** Comme les autres parties, il reste « en attente » jusqu'à ce que l'ingénieur le **confirme** ; l'assembleur (Phase 4) signale un Optima non confirmé comme donnée manquante. À l'export, le PDF est inséré **tel quel en annexe**, à la fin du rapport (ex. rapport Andalos : ~37 pages, p. 40–76).
+
+### À trancher dans cette phase
+
+Un `.docx` ne peut pas embarquer des pages PDF. Deux options, à trancher avec Luis **avant l'implémentation** :
+
+- **Option A — pages PDF → images dans le .docx.** + Un seul fichier Word, signature/édition inchangées (US-39), flux docxtemplater conservé. − ~37 images plein format (fichier lourd), texte non sélectionnable, qualité selon la résolution, perte du vectoriel/liens d'Optima.
+- **Option B — rapport exporté en PDF puis PDF Optima fusionné à la fin.** + Annexe à l'identique (qualité/texte/vectoriel préservés), léger, vraiment « tel quel » (US-51). − Livrable final = **PDF, non éditable dans Word** ; étape .docx→PDF + fusion PDF à ajouter ; clarifier si Luis signe le Word ou le PDF.
+
+### Critères d'acceptation
+
+- [ ] Migration **additive** : bucket privé `optima` + colonnes sur `dossiers` (`optima_path`, `optima_confirme`, `optima_sha256`) ; RLS + **journal**.
+- [ ] Upload d'**un** PDF Optima ; **aucun appel IA**, aucune extraction, aucun recalcul.
+- [ ] Statut « en attente » → bouton **Confirmer** (même patron que factures/équipements) ; confirmation tracée.
+- [ ] L'assembleur (Phase 4) signale un PDF Optima **non confirmé** comme donnée manquante bloquant la soumission.
+- [ ] Option A ou B **tranchée et documentée** ; le PDF est inséré en annexe à la fin du rapport selon l'option retenue.
+
+## Bloquée par
+
+- Aucune pour l'upload/la confirmation (s'appuie sur Storage + le patron de confirmation des phases 2/6 et sur la complétude de la Phase 4). **L'insertion en annexe est bloquée par la décision Option A/B** (interne à la phase, pas une réponse de Luis sur un champ).
+
+---
+
+## Phase 13 : Emplacements de texte libre — sommaire, mesures, sections (retrait du sommaire généré et du ROI)
+
+**User stories** : US-57, US-58, US-52 *(US-58 remplace US-38 ; US-52 remplace US-33)*
+
+### Ce qu'on livre
+
+Des emplacements de **texte libre** à des endroits fixes du modèle (sommaire exécutif, humidification et contrôles, électricité, mesures étudiées, conclusion) où l'ingénieur écrit et **colle ses tableaux d'Optima**. Deux conséquences sur du code déjà livré :
+
+- **L'assembleur ne génère plus le sommaire exécutif** (US-58) : `sommaireExecutif` retiré de `assembleur.ts`, et son appel/champ retirés de `rapport.ts` et de l'export. Le sommaire devient un emplacement de texte libre.
+- **L'app ne calcule plus le ROI/PRI** (US-52) : `retourAnnees`/`investissementNet`/type `Mesure` structuré retirés de `mesures.ts`, `rapport.ts` et l'export. Le tableau des mesures devient un emplacement de texte libre collé d'Optima.
+
+Les emplacements s'appuient sur la table `rapport_textes` (Phase 7). **Gel** inchangé : à la soumission, les textes libres sont figés dans le snapshot comme le reste.
+
+### Critères d'acceptation
+
+- [ ] 5 emplacements de texte libre à positions fixes (sommaire, humidification/contrôles, électricité, mesures étudiées, conclusion), rendus à leur place dans le `.docx` ; vides par défaut.
+- [ ] `sommaireExecutif` (assembleur) **retiré** ; l'assembleur ne produit plus de sommaire ; conséquences propagées à `rapport.ts` et à l'export.
+- [ ] Calcul ROI/PRI **retiré** (`mesures.ts`/`rapport.ts`/export) ; aucun chiffre de mesure calculé ni inventé ; `mesures.test.ts` retiré ou réécrit.
+- [ ] **Rétrocompatibilité des snapshots** : un rapport **soumis avant la Phase 13** (snapshot JSON contenant `sommaire`, `mesures[]`, `retour_annees`) **s'exporte toujours à l'identique de ce qui avait été envoyé** — le rendu lit les anciens champs du snapshot s'ils sont présents, les nouveaux emplacements sinon. Test à assertions sur un ancien snapshot figé.
+- [ ] **Mesures déjà saisies** dans l'ancien formulaire structuré : **option par défaut retenue = copie one-shot** du tableau structuré vers le texte libre pré-rempli (migration de données additive ; l'ingénieur ajuste ensuite). *Alternative écartée : laisser l'ancien tableau en lecture seule à côté — rejetée pour ne pas garder deux sources.*
+- [ ] `src/lib/redaction.ts` laissé **gâté OFF** (US-41/42 reportées) — aucun code neuf dessus.
+
+## Bloquée par
+
+- Aucune réponse de Luis requise. S'appuie sur `rapport_textes` (Phase 7), le gel/snapshot (Phase 5) et l'export (Phase 1) ; retire du code des Phases 4 et 7.
+
+---
+
+## Phase 14 : Fiche d'équipement alignée sur le rapport
+
+**User stories** : US-56
+
+### Ce qu'on livre
+
+La fiche d'équipement reçoit les champs exacts du rapport : ID, description, marque/modèle, débit (PCM) et % d'air frais, ventilateur, refroidissement, chauffage, humidificateur, capacité de refroidissement (kW), capacité de chauffage (kW), efficacité (%), constat/remarques (puces libres), photo de l'unité, photo de la fiche signalétique. Chaque champ peut rester **N/D**. Rendu conforme au rapport.
+
+### Critères d'acceptation
+
+- [ ] Migration **additive** : nouvelles colonnes sur `equipements` ; **jamais** de renommage/suppression des colonnes existantes (`puissance_*`, `heures`, `facteur`…).
+- [ ] Chaque nouveau champ peut rester **N/D** ; validation champ par champ conservée (Phase 2).
+- [ ] Fiche rendue dans le `.docx` exactement comme dans le rapport.
+- [ ] **Décision Luis** appliquée : les champs **heures de fonctionnement** et **facteur de charge** restent-ils sur la fiche (contrôle interne) ou disparaissent ? Le calcul de consommation (US-26, puissance × heures × facteur) en **dépend** — rien n'est retiré avant la réponse.
+
+## Bloquée par
+
+- **Réponse de Luis** (heures de fonctionnement + facteur de charge sur la fiche : conservés pour contrôle interne, ou retirés ?). Puis Phase 2 (équipements), Phase 3 (calcul).
+
+---
+
+## Phase 15 : Factures — tableaux mensuels, GES, degrés-jours, graphiques
+
+**User stories** : US-55
+
+### Ce qu'on livre
+
+À partir des factures (Phase 6), le rapport présente des tableaux **mensuels** de gaz et d'électricité, les tarifs moyens, les GES, l'intensité par pi², et des **graphiques** avec degrés-jours.
+
+### Critères d'acceptation
+
+- [ ] Migration **additive** pour les données mensuelles et les degrés-jours.
+- [ ] Tableaux mensuels gaz + électricité, tarifs moyens ($/kWh, $/m³), GES, intensité par pi² — **calculés par le code** (source unique), rendus dans le `.docx`.
+- [ ] Graphiques avec degrés-jours produits **selon la décision de Luis** (voir ci-dessous).
+- [ ] **Décisions Luis** appliquées : (a) **d'où viennent les degrés-jours** (saisie manuelle ? source externe ?) ; (b) **l'app génère-t-elle les graphiques** (images rendues côté serveur et insérées dans le `.docx`) ou non.
+
+## Bloquée par
+
+- **Réponse de Luis** (source des degrés-jours + génération des graphiques). Puis Phase 6 (factures).
