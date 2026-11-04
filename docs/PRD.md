@@ -59,20 +59,20 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 - **US-32** — En tant qu'ingénieur, je veux téléverser les factures d'énergie (Hydro-Québec, Énergir, etc.) sur plusieurs périodes, l'IA proposant les chiffres, le code les vérifiant (somme des périodes, dates qui se suivent) et moi les confirmant, avec saisie manuelle si l'extraction échoue, afin d'obtenir des chiffres fiables. *(Histoire à préciser une fois de vraies factures observées.)*
 
 ### Mesures d'efficacité énergétique
-- **US-33** — En tant qu'ingénieur, je veux remplir à la main le tableau des mesures (nom de la mesure, économies, coût d'investissement, subvention), le code calculant le retour sur investissement à partir des coûts, des économies et de la subvention, afin de documenter les mesures sans que l'app n'invente de résultat.
+- **US-33** *(remplacée par US-52)* — En tant qu'ingénieur, je veux remplir à la main le tableau des mesures (nom de la mesure, économies, coût d'investissement, subvention), le code calculant le retour sur investissement à partir des coûts, des économies et de la subvention, afin de documenter les mesures sans que l'app n'invente de résultat.
 
 ### Assembleur et rapport
 - **US-34** — En tant qu'ingénieur, je veux que l'assembleur signale toute fiche non validée ou donnée manquante et bloque la soumission (contrôle de complétude), afin de ne rien oublier.
 - **US-35** — En tant qu'admin (Luis), je veux pouvoir autoriser une soumission incomplète avec une raison écrite, afin de débloquer un cas exceptionnel sous ma responsabilité.
 - **US-36** — En tant qu'ingénieur, je veux que l'assembleur compare la consommation estimée des équipements à celle des factures et m'alerte si l'écart dépasse le seuil (contrôle de cohérence) ; sans factures, il affiche « non disponible » plutôt que d'échouer silencieusement, afin de diriger mon attention sur ce qui est douteux.
 - **US-37** — En tant qu'admin (Luis), je veux régler le seuil de cohérence (par défaut 20 %), afin de l'adapter au contexte.
-- **US-38** — En tant qu'ingénieur, je veux que l'assembleur génère le sommaire exécutif avec son tableau résumé, afin de ne pas le composer à la main.
+- **US-38** *(remplacée par US-58)* — En tant qu'ingénieur, je veux que l'assembleur génère le sommaire exécutif avec son tableau résumé, afin de ne pas le composer à la main.
 - **US-39** — En tant qu'ingénieur, je veux produire le rapport dans le modèle Word de MT Conseil (logo, marges, titres, sections), afin de ne plus refaire la mise en page à chaque audit.
 - **US-40** — En tant qu'admin (Luis), je veux modifier les textes fixes du modèle (méthodologie, norme ASHRAE, risques SSE génériques), chaque rapport portant le numéro de version du modèle utilisé, afin de faire évoluer le modèle sans altérer les rapports passés.
 
 ### Rédaction assistée
-- **US-41** — En tant qu'ingénieur, je veux que l'IA rédige la description des installations à partir des fiches validées, dans le style des anciens rapports de Luis, afin d'obtenir un brouillon propre à réviser.
-- **US-42** — En tant qu'ingénieur, je veux que l'IA mette en forme les mesures d'amélioration et conclusions que je décide (sans jamais en inventer), afin que le jugement d'ingénieur reste le mien.
+- **US-41** *(reportée (hors périmètre actuel) — voir Hors périmètre)* — En tant qu'ingénieur, je veux que l'IA rédige la description des installations à partir des fiches validées, dans le style des anciens rapports de Luis, afin d'obtenir un brouillon propre à réviser.
+- **US-42** *(reportée (hors périmètre actuel) — voir Hors périmètre)* — En tant qu'ingénieur, je veux que l'IA mette en forme les mesures d'amélioration et conclusions que je décide (sans jamais en inventer), afin que le jugement d'ingénieur reste le mien.
 - **US-43** — En tant qu'ingénieur, je veux rédiger moi-même les sections de jugement (problèmes techniques et de confort, phasage des travaux, risques SSE propres au bâtiment, conclusions), afin de garder la main sur ce qui engage ma responsabilité.
 
 ### Statuts, approbation, commentaires
@@ -83,6 +83,29 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 - **US-48** — En tant qu'ingénieur, je veux que chaque export soit conservé tel qu'envoyé et qu'une modification ultérieure crée une nouvelle version, afin de garder une trace de ce qui a réellement été remis.
 - **US-49** — En tant qu'admin (Luis), je veux recevoir un courriel quand un rapport est soumis, et l'ingénieur veut en recevoir un quand son rapport est approuvé ou renvoyé, afin que personne n'ait à surveiller l'app.
 
+### Rapport Optima (Partie 4 — nouveau)
+- **US-50** — En tant qu'ingénieur, je veux téléverser le rapport PDF d'Optima dans le dossier ; l'app **ne le lit pas et ne le calcule pas** ; comme les autres parties, il reste « en attente » jusqu'à ce que je le confirme, afin d'intégrer le travail d'Optima sans que l'app n'interprète son contenu.
+- **US-51** — En tant qu'ingénieur, je veux que le PDF Optima soit inséré **tel quel en annexe**, à la fin du rapport final, afin de joindre la simulation d'Optima sans la retranscrire.
+- **US-52** *(remplace US-33)* — En tant qu'ingénieur, je veux coller ou saisir à la main le **tableau des mesures étudiées** venant d'Optima dans un emplacement de texte libre ; l'app **ne calcule plus le ROI/PRI** et n'invente jamais un chiffre, afin de reporter les résultats d'Optima sans recalcul.
+
+### Description du bâtiment (Partie 2 — ajouts)
+- **US-53** — En tant qu'ingénieur, je veux saisir un **tableau de zones** (nom de zone, superficie) en plus de la superficie totale ; la superficie totale alimente l'intensité (kWh/pi² et $/pi²), afin de décrire le découpage du bâtiment.
+- **US-54** — En tant qu'ingénieur, je veux saisir la **distribution électrique** (nombre d'entrées, ampères, tension), afin de documenter l'alimentation du bâtiment.
+
+### Factures (Partie 3 — ajouts)
+- **US-55** — En tant qu'ingénieur, je veux des tableaux mensuels de gaz et d'électricité, tarifs moyens, GES, intensité par pi², et des graphiques avec degrés-jours, afin de présenter l'analyse des factures exigée par le rapport. *À confirmer : d'où viennent les degrés-jours, et l'app génère-t-elle les graphiques ?*
+
+### Fiche d'équipement (alignement sur le rapport)
+- **US-56** — En tant qu'ingénieur, je veux une fiche d'équipement avec les champs du rapport : ID, description, marque/modèle, débit (PCM) et % d'air frais, ventilateur, refroidissement, chauffage, humidificateur, capacité de refroidissement (kW), capacité de chauffage (kW), efficacité (%), constat/remarques (puces libres), photo de l'unité, photo de la fiche signalétique — chaque champ pouvant rester **N/D**, afin que la fiche corresponde exactement au rapport. *À confirmer avec Luis : heures de fonctionnement et facteur de charge ne figurent pas dans le rapport — utiles seulement pour un contrôle interne ?*
+
+### Texte libre de l'ingénieur
+- **US-57** — En tant qu'ingénieur, je veux des emplacements de texte libre à des endroits fixes du modèle (sommaire exécutif, humidification et contrôles, électricité, mesures étudiées, conclusion), afin d'écrire moi-même les sections de rédaction.
+- **US-58** *(remplace US-38)* — En tant qu'ingénieur, je veux que le **sommaire exécutif** (texte + tableau de synthèse) soit un emplacement de texte libre où j'écris et colle mes tableaux d'Optima ; **l'assembleur ne génère plus de sommaire**, afin de garder la main sur ce qui engage ma responsabilité.
+
+### Pages du modèle (ajouts)
+- **US-59** — En tant qu'ingénieur, je veux un **registre des révisions** (numéro, date, description), afin de tracer les versions du rapport.
+- **US-60** — En tant qu'ingénieur, je veux une **table des matières automatique**, afin de ne pas la composer à la main.
+
 ## Critères de succès
 
 1. **Lecture des plaques** : sur d'anciens dossiers anonymisés, chaque champ lu par l'IA (marque, modèle, puissance, année) est comparé à la fiche déjà validée par Luis ; seuil de départ **≥ 80 % de champs corrects** (à ajuster après un premier test).
@@ -91,13 +114,14 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 
 ## Hors périmètre
 
-- La simulation énergétique (faite par une autre application ; l'app importe seulement ses fichiers de résultats, manuellement pour l'instant).
+- La simulation énergétique elle-même (faite par Optima) reste hors périmètre ; l'app ne la refait pas. En revanche, l'app téléverse le rapport PDF d'Optima et l'ajoute en annexe tel quel (Partie 4 / US-50, US-51) — elle ne lit ni ne recalcule son contenu.
 - Décider à la place de l'ingénieur (mesures d'amélioration et conclusions restent son jugement).
 - Produire des plans et devis.
-- Gérer les demandes de subvention (incluses dans l'offre de service, mais hors de ce projet ; seul le montant de subvention est saisi pour le calcul du ROI).
+- Gérer les demandes de subvention (incluses dans l'offre de service, mais hors de ce projet). L'app **ne calcule plus le ROI** : le montant de subvention et le ROI apparaissent dans le tableau collé depuis Optima.
 - Envoyer quoi que ce soit au client sans l'approbation de Luis ; le client ne se connecte jamais.
 - L'import automatique des factures : différé jusqu'à disposer de 3-4 vraies factures (saisie assistée d'ici là).
-- **L'import automatique d'un fichier de résultats de l'autre app : reporté (idée, pas une fonction du MVP).** Le tableau des mesures est rempli à la main.
+- **Le rapport PDF d'Optima est désormais dans le périmètre** (téléversé + inséré en annexe tel quel, Partie 4 / US-50, US-51) ; l'app ne lit ni ne recalcule son contenu. Le tableau des mesures est collé/saisi à la main depuis Optima (US-52).
+- **La rédaction automatique par l'IA (US-41, US-42) est reportée** hors du périmètre actuel, remplacée par les emplacements de texte libre écrits par l'ingénieur (US-57).
 - La comparaison avec des bâtiments semblables : reportée (idée).
 - Deux idées notées mais **non construites** dans le MVP : un agent de recherche en lecture seule sur les projets/clients ; un modèle d'IA local pour éviter le transfert de données.
 
@@ -110,8 +134,8 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 - **Table des valeurs par défaut** : 10 à 15 types au départ ; chaque valeur « à confirmer » tant que Luis ne l'a pas confirmée ; équipement hors catégorie signalé (jamais deviné) ; modification au cas par cas avec raison écrite. Chaque type rattaché à un poste de consommation ; bilan par poste et intensité énergétique (kWh/m²) calculés par le code.
 - **Gel des valeurs** : figées à la **soumission** du rapport ; un brouillon se recalcule.
 - **Factures** : l'IA propose, le code vérifie (somme des périodes, dates qui se suivent) et signale les doutes, l'ingénieur confirme ; saisie manuelle si l'extraction échoue. Conception finale après 3-4 vraies factures.
-- **Mesures d'efficacité** : tableau rempli à la main (nom, économies, coût, subvention) ; le code calcule le ROI à partir des coûts, économies et subvention ; l'app n'invente jamais une mesure ni un chiffre d'économie.
-- **Assembleur** : complétude (bloque la soumission ; seul Luis peut autoriser malgré tout, avec raison écrite) ; cohérence (écart > seuil réglable, 20 % par défaut ; « non disponible » sans factures) ; sommaire exécutif + tableau résumé générés. La comparaison avec bâtiments semblables est reportée.
+- **Mesures d'efficacité** : les tableaux (sommaire exécutif, mesures étudiées) sont **collés/saisis depuis Optima** dans des emplacements de texte libre ; **plus de calcul de ROI/PRI par l'app** ; l'app n'invente jamais une mesure ni un chiffre.
+- **Assembleur** : complétude (bloque la soumission ; seul Luis peut autoriser malgré tout, avec raison écrite) ; cohérence (écart > seuil réglable, 20 % par défaut ; « non disponible » sans factures), tous deux inchangés (US-34–37). Le sommaire exécutif n'est plus généré : c'est désormais un emplacement de texte libre (US-58).
 - **Modèle Word** : textes fixes (méthodologie, ASHRAE, risques SSE génériques) éditables par Luis ; numéro de version du modèle inscrit sur chaque rapport.
 - **Statuts** : Brouillon → Soumis → Approuvé → Exporté, plus un statut distinct « À corriger » quand Luis renvoie avec commentaires (un champ de texte par section, sans fil de discussion). Luis peut corriger lui-même et approuver, et approuver ses propres rapports (tracé au journal). Toute modification après approbation repasse à « Soumis ». Export bloqué hors « Approuvé ». Chaque export conservé tel qu'envoyé ; une modification ultérieure crée une nouvelle version.
 - **Notifications courriel** : à Luis quand un rapport est soumis ; à l'ingénieur quand son rapport est approuvé ou renvoyé.
@@ -120,7 +144,8 @@ Les ingénieurs de MT Conseil, chacun avec son compte. Luis de la Cruz est admin
 - **Partage et verrou** : toute la firme voit tous les dossiers ; message « Marc modifie cette fiche » ; verrou expirant après inactivité, forçable par Luis.
 - **Dossiers** : liste avec statut, ingénieur responsable, filtre et recherche ; Luis peut supprimer un dossier avec ses photos et factures. Conservation par défaut proposée : 24 mois après l'export (à confirmer avec Luis).
 - **Journal** : immuable ; enregistre modifications de données, approbations, changements de statut et exports.
-- **Structure du rapport** (issue de l'offre de service) répartie en trois origines : rempli par le code (tableaux de consommation, liste des équipements, bilan par poste, intensité énergétique, sommaire exécutif) ; identique d'un client à l'autre, dans le modèle une fois (risques SSE génériques, méthodologie, norme ASHRAE) ; propre à chaque bâtiment (description des installations et mise en forme des mesures/conclusions en brouillon IA révisé par Luis ; problèmes techniques et de confort, phasage, risques SSE propres au bâtiment, conclusions rédigés à la main par l'ingénieur).
+- **Structure du rapport** (issue de l'offre de service) répartie en trois origines : rempli par le code (tableaux de consommation, liste des équipements, bilan par poste, intensité énergétique, tableaux factures/GES/degrés-jours, tableau de zones, distribution électrique, registre des révisions, table des matières automatique) ; identique d'un client à l'autre, dans le modèle une fois (risques SSE génériques, méthodologie, norme ASHRAE) ; propre à chaque bâtiment, écrit à la main par l'ingénieur dans des emplacements de texte libre (sommaire exécutif, humidification et contrôles, électricité, mesures étudiées, conclusion ; problèmes techniques et de confort, phasage, risques SSE propres au bâtiment) — la rédaction IA (US-41/42) est reportée. Le rapport PDF d'Optima est inséré en annexe tel quel.
+- **Partie 4 — Rapport Optima** : le PDF d'Optima est téléversé dans le dossier → il reste « en attente » comme les autres parties → l'ingénieur le confirme → il est inséré en annexe tel quel. L'app ne le lit ni ne le recalcule.
 
 ## Notes complémentaires
 
