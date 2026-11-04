@@ -202,12 +202,12 @@ L'admin active les droits personne par personne (voir [défaut on] / modifier / 
 
 ### Critères d'acceptation
 
-- [ ] Droits activables par personne (voir/modifier/valider/exporter) ; approbation réservée admin et distincte de « valider ».
-- [ ] Désactivation d'un compte sans perte d'historique.
-- [ ] Verrou d'édition avec message, expiration sur inactivité, forçable par l'admin.
-- [ ] Liste des dossiers avec statut, ingénieur responsable, filtre et recherche.
-- [ ] Suppression d'un dossier (admin) avec ses photos et factures.
-- [ ] Courriels : à Luis à la soumission ; à l'ingénieur à l'approbation/au renvoi.
+- [x] Droits activables par personne (voir/modifier/valider/exporter) ; approbation réservée admin et distincte de « valider ».
+- [x] Désactivation d'un compte sans perte d'historique.
+- [x] Verrou d'édition avec message, expiration sur inactivité, forçable par l'admin.
+- [x] Liste des dossiers avec statut, ingénieur responsable, filtre et recherche.
+- [x] Suppression d'un dossier (admin) avec ses photos et factures.
+- [x] Courriels : à Luis à la soumission ; à l'ingénieur à l'approbation/au renvoi (Resend best-effort, `src/lib/courriel.ts`).
 
 ## Bloquée par
 
