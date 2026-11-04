@@ -43,6 +43,20 @@ test("le snapshot fige conso + type (facteur/poste) par équipement", () => {
   assert.equal(snap.bilan.totalEquipementsKwh, 5000);
 });
 
+test("Phase 9 : les zones sont descriptives — l'intensité est inchangée (zones vides vs peuplées)", () => {
+  const sansZones = construireSnapshot(dossier, [eq(0.5)], { ...extra, zones: [] });
+  const avecZones = construireSnapshot(dossier, [eq(0.5)], {
+    ...extra,
+    zones: [
+      { nom: "RDC", superficie: 60, unite: "m2" },
+      { nom: "Étage", superficie: 400, unite: "pi2" },
+    ],
+  });
+  assert.equal(avecZones.intensite, sansZones.intensite);
+  assert.equal(avecZones.bilan.totalEquipementsKwh, sansZones.bilan.totalEquipementsKwh);
+  assert.equal(avecZones.zones.length, 2);
+});
+
 test("un changement ultérieur d'un équipement ne modifie pas le snapshot sérialisé (gel)", () => {
   const equipements = [eq(0.5)];
   const fige = JSON.stringify(construireSnapshot(dossier, equipements, extra));

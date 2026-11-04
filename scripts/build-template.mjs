@@ -9,7 +9,9 @@
 // {mesures_mise_en_forme}, {problemes_techniques}, {phasage_travaux}, {risques_sse},
 // {conclusions} ; la boucle {#mesures}…{/mesures} (nom, economies_annuelles, cout_investissement,
 // subvention, retour_annees) ; les textes fixes {methodologie}/{norme_ashrae}/{modele_risques_sse}
-// et « Modèle v{modele_version} ». Aucune autre ligne de code à changer.
+// et « Modèle v{modele_version} ». Phase 9 ajoute la boucle {#zones}…{/zones} (nom_zone,
+// superficie_zone, unite_zone) + « {zones_total_m2} m² » (descriptif, hors calcul).
+// Aucune autre ligne de code à changer.
 // ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 //
 // Régénérer : `node scripts/build-template.mjs`
@@ -60,6 +62,12 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${p("{#equipements}")}
     ${p("- {nom} : {puissance_valeur} {puissance_unite} → {conso_kwh_an} kWh/an")}
     ${p("{/equipements}")}
+    ${p("")}
+    ${p("Zones du bâtiment (descriptif) :")}
+    ${p("{#zones}")}
+    ${p("- {nom_zone} : {superficie_zone} {unite_zone}")}
+    ${p("{/zones}")}
+    ${p("Superficie totale des zones (descriptive) : {zones_total_m2} m²")}
     ${p("")}
     ${p("Description des installations :")}
     ${p("{description_installations}")}

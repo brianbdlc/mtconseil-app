@@ -12,6 +12,7 @@ import {
 } from "./calc.ts";
 import { sommaireExecutif } from "./assembleur.ts";
 import { retourAnnees, investissementNet, type Mesure } from "./mesures.ts";
+import type { Zone } from "./zones.ts";
 import type { NarrativeSection } from "./statuts.ts";
 
 type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
@@ -54,6 +55,7 @@ export function construireSnapshot(
     mesures: Mesure[];
     textes: Partial<Record<NarrativeSection, string>>; // seulement les sections valide=true
     modele: ModeleSnapshot;
+    zones?: Zone[]; // Phase 9 : descriptif, hors calcul
   },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
@@ -105,6 +107,12 @@ export function construireSnapshot(
       retour_annees: retourAnnees(m),
     })),
     textes: parametres.textes,
+    // Phase 9 : zones DESCRIPTIVES figées (hors calcul — l'intensité reste basée sur la superficie totale).
+    zones: (parametres.zones ?? []).map((z) => ({
+      nom: z.nom,
+      superficie: z.superficie,
+      unite: z.unite,
+    })),
     modele: {
       methodologie: parametres.modele.methodologie,
       norme_ashrae: parametres.modele.norme_ashrae,
