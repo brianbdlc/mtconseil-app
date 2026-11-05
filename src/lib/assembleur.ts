@@ -58,14 +58,15 @@ export type Completude = {
   bloquant: boolean;
   problemes: ProblemeEquipement[];
   superficieAbsente: boolean;
+  optimaNonConfirme: boolean;
   nbManuels: number;
   avertissements: Avertissement[];
 };
 
-/** Contrôle de complétude (US-35/36). Bloque la soumission si problèmes[] ou superficie absente. */
+/** Contrôle de complétude (US-35/36). Bloque si problèmes[], superficie absente ou Optima non confirmé. */
 export function controleCompletude(
   equipements: EquipementAssembleur[],
-  dossier: { superficie_valeur: number | null; superficie_unite: string | null },
+  dossier: { superficie_valeur: number | null; superficie_unite: string | null; optima_confirme: boolean },
 ): Completude {
   const problemes: ProblemeEquipement[] = [];
   const avertissements: Avertissement[] = [];
@@ -118,10 +119,14 @@ export function controleCompletude(
   // Règle 3 (niveau dossier) : superficie du bâtiment absente.
   const superficieAbsente = dossier.superficie_valeur === null || !dossier.superficie_unite;
 
+  // Règle 4 (Phase 12, US-51) : rapport Optima obligatoire et confirmé pour CHAQUE audit.
+  const optimaNonConfirme = !dossier.optima_confirme;
+
   return {
-    bloquant: problemes.length > 0 || superficieAbsente,
+    bloquant: problemes.length > 0 || superficieAbsente || optimaNonConfirme,
     problemes,
     superficieAbsente,
+    optimaNonConfirme,
     nbManuels,
     avertissements,
   };

@@ -12,6 +12,7 @@ import {
 } from "@/lib/calc";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
 import { VerrouFiche } from "@/components/verrou-fiche";
+import { OptimaSection } from "./optima-section";
 
 type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
 
@@ -139,11 +140,11 @@ export default async function DossierPage({
             </Link>
             {["approuve", "exporte"].includes(dossier.statut) ? (
               <a href={`/dossiers/${id}/export`}>
-                <Button variant="secondary">Exporter .docx</Button>
+                <Button variant="secondary">Exporter PDF</Button>
               </a>
             ) : (
               <Button variant="secondary" disabled title="Disponible une fois le rapport approuvé">
-                Exporter .docx
+                Exporter PDF
               </Button>
             )}
           </div>
@@ -365,6 +366,9 @@ export default async function DossierPage({
           </table>
         </div>
       </section>
+
+      {/* Annexe Optima (US-50/US-51) — PDF inséré tel quel, hors lecture/recalcul */}
+      <OptimaSection dossierId={id} />
 
       {/* Registre des révisions (US-59) — descriptif, saisie ingénieur pure (hors calcul) */}
       <section>

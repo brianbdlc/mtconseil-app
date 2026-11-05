@@ -105,7 +105,7 @@ export default async function RapportPage({
   const { data: dossier } = await supabase
     .from("dossiers")
     .select(
-      "id, client, adresse, statut, snapshot_perime, rapport_snapshot, commentaires, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite",
+      "id, client, adresse, statut, snapshot_perime, rapport_snapshot, commentaires, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite, optima_confirme",
     )
     .eq("id", id)
     .single();
@@ -226,7 +226,7 @@ async function FrozenReport({
 
       {["approuve", "exporte"].includes(dossier.statut) && (
         <p className="text-sm text-success">
-          ✓ Rapport approuvé. L'export .docx est disponible depuis la fiche du dossier.
+          ✓ Rapport approuvé. L'export PDF est disponible depuis la fiche du dossier.
         </p>
       )}
     </>
@@ -401,6 +401,7 @@ async function LiveReport({
     usage: string | null;
     gaz_quantite: number | null;
     gaz_unite: string | null;
+    optima_confirme: boolean;
   };
   supabase: Awaited<ReturnType<typeof createClient>>;
   estAdmin: boolean;
@@ -475,7 +476,7 @@ async function LiveReport({
       <section>
         <h2 className="text-[15px] font-semibold text-ink mb-3">Complétude</h2>
         <div className="border border-border rounded-lg bg-surface p-4 space-y-4">
-          {completude.problemes.length === 0 && !completude.superficieAbsente ? (
+          {completude.problemes.length === 0 && !completude.superficieAbsente && !completude.optimaNonConfirme ? (
             <p className="text-sm text-success">✓ Prêt à soumettre : aucun point bloquant.</p>
           ) : (
             <div className="space-y-3">
@@ -483,6 +484,12 @@ async function LiveReport({
                 <p className="text-sm text-[#B42318]">
                   Superficie du bâtiment absente —{" "}
                   <Link href={`/dossiers/${id}`} className="underline">à renseigner</Link>.
+                </p>
+              )}
+              {completude.optimaNonConfirme && (
+                <p className="text-sm text-[#B42318]">
+                  Rapport Optima non confirmé —{" "}
+                  <Link href={`/dossiers/${id}`} className="underline">téléverser et confirmer</Link>.
                 </p>
               )}
               {completude.problemes.map((p) => (
