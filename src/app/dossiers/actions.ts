@@ -9,7 +9,7 @@ import {
   normaliserSurcharge,
 } from "@/lib/calc";
 import { controleCompletude, type EquipementAssembleur } from "@/lib/assembleur";
-import { construireSnapshot, type ModeleSnapshot } from "@/lib/rapport";
+import { construireSnapshot, type ModeleSnapshot, type DistributionEntree } from "@/lib/rapport";
 import { SECTIONS, NARRATIVE_SECTIONS, type NarrativeSection } from "@/lib/statuts";
 import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
@@ -486,6 +486,37 @@ export async function supprimerZone(zoneId: string, dossierId: string) {
   revalidatePath(`/dossiers/${dossierId}`);
 }
 
+// ───────────────────────── Distribution électrique (Phase 10, US-54) ─────────────────────────
+// Saisie INGÉNIEUR pure, purement DESCRIPTIVE : aucune valeur calculée ni devinée. Le nombre
+// d'entrées est dérivé du nombre de lignes. CRUD inline dans la page dossier (patron zones).
+
+/** Création / édition d'une entrée électrique (create si id vide). */
+export async function updateDistribution(formData: FormData) {
+  await exige("modifier");
+  const id = strOrNull(formData.get("id"));
+  const dossierId = String(formData.get("dossier_id"));
+  const row = {
+    amperes: numFr(formData.get("amperes")),
+    tension: numFr(formData.get("tension")),
+  };
+
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("distribution_electrique").update(row).eq("id", id)
+    : await supabase.from("distribution_electrique").insert({ ...row, dossier_id: dossierId });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+export async function supprimerDistribution(entreeId: string, dossierId: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const { error } = await supabase.from("distribution_electrique").delete().eq("id", entreeId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
 // ───────────────────────── Sections narratives (Phase 7, US-41/42/43) ─────────────────────────
 // L'IA RÉDIGE un brouillon (source='ia', valide=false) sous validation ; sinon saisie à la main.
 // L'assembleur ne lit QUE valide=true. upsert sur (dossier_id, section).
@@ -828,6 +859,14 @@ export async function soumettreDossier(formData: FormData) {
     .order("ordre", { ascending: true })
     .returns<Zone[]>();
 
+  // Phase 10 : distribution électrique descriptive, gelée dans le snapshot (hors calcul).
+  const { data: distribution } = await supabase
+    .from("distribution_electrique")
+    .select("amperes, tension")
+    .eq("dossier_id", dossierId)
+    .order("ordre", { ascending: true })
+    .returns<DistributionEntree[]>();
+
   const eqs = equipements ?? [];
   const completude = controleCompletude(eqs, dossier);
 
@@ -839,6 +878,7 @@ export async function soumettreDossier(formData: FormData) {
     textes,
     modele,
     zones: zones ?? [],
+    distribution: distribution ?? [],
   });
 
   const update: Record<string, unknown> = {

@@ -11,6 +11,8 @@
 // subvention, retour_annees) ; les textes fixes {methodologie}/{norme_ashrae}/{modele_risques_sse}
 // et « Modèle v{modele_version} ». Phase 9 ajoute la boucle {#zones}…{/zones} (nom_zone,
 // superficie_zone, unite_zone) + « {zones_total_m2} m² » (descriptif, hors calcul).
+// Phase 10 ajoute la boucle {#distribution}…{/distribution} (amperes, tension) +
+// « Nombre d'entrées : {distribution_nb_entrees} » (descriptif, saisie ingénieur, hors calcul).
 // Aucune autre ligne de code à changer.
 // ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 //
@@ -68,6 +70,12 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${p("- {nom_zone} : {superficie_zone} {unite_zone}")}
     ${p("{/zones}")}
     ${p("Superficie totale des zones (descriptive) : {zones_total_m2} m²")}
+    ${p("")}
+    ${p("Distribution électrique (descriptif) :")}
+    ${p("Nombre d'entrées : {distribution_nb_entrees}")}
+    ${p("{#distribution}")}
+    ${p("- {amperes} A / {tension} V")}
+    ${p("{/distribution}")}
     ${p("")}
     ${p("Description des installations :")}
     ${p("{description_installations}")}

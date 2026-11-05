@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createEquipement, updateBatiment, updateZone, supprimerZone } from "../actions";
+import { createEquipement, updateBatiment, updateZone, supprimerZone, updateDistribution, supprimerDistribution } from "../actions";
 import {
   bilanEnergetique,
   gazEnKwh,
@@ -70,6 +70,13 @@ export default async function DossierPage({
   const { data: zones } = await supabase
     .from("zones")
     .select("id, nom, superficie, unite")
+    .eq("dossier_id", id)
+    .order("ordre", { ascending: true });
+
+  // Phase 10 : distribution électrique descriptive (hors calcul).
+  const { data: distribution } = await supabase
+    .from("distribution_electrique")
+    .select("id, amperes, tension")
     .eq("dossier_id", id)
     .order("ordre", { ascending: true });
 
@@ -277,6 +284,73 @@ export default async function DossierPage({
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-muted">
                     Aucune zone.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Distribution électrique (US-54) — descriptif, saisie ingénieur pure (hors calcul) */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-ink">Distribution électrique</h2>
+            <p className="text-xs text-muted">Descriptif — saisie ingénieur. Une ligne par entrée électrique.</p>
+          </div>
+          <form action={updateDistribution}>
+            <input type="hidden" name="dossier_id" value={id} />
+            <Button type="submit">+ Ajouter une entrée</Button>
+          </form>
+        </div>
+
+        <div className="overflow-x-auto border border-border rounded-lg bg-surface">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted border-b border-border">
+                <th className="px-4 py-2 font-medium">Ampères (A)</th>
+                <th className="px-4 py-2 font-medium">Tension (V)</th>
+                <th className="px-4 py-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(distribution ?? []).map((d) => (
+                <tr key={d.id} className="border-b border-border last:border-0 align-top">
+                  <td className="px-4 py-2">
+                    <form id={`dist-${d.id}`} action={updateDistribution} className="contents">
+                      <input type="hidden" name="id" value={d.id} />
+                      <input type="hidden" name="dossier_id" value={id} />
+                      <Input
+                        name="amperes"
+                        className="tabular-nums"
+                        defaultValue={d.amperes ?? ""}
+                        form={`dist-${d.id}`}
+                      />
+                    </form>
+                  </td>
+                  <td className="px-4 py-2">
+                    <Input
+                      name="tension"
+                      className="tabular-nums"
+                      defaultValue={d.tension ?? ""}
+                      form={`dist-${d.id}`}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-2">
+                      <Button type="submit" form={`dist-${d.id}`}>Enregistrer</Button>
+                      <form action={supprimerDistribution.bind(null, d.id, id)}>
+                        <Button type="submit" variant="secondary">Supprimer</Button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {(distribution ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-muted">
+                    Aucune entrée électrique.
                   </td>
                 </tr>
               )}

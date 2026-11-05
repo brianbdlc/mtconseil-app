@@ -57,6 +57,23 @@ test("Phase 9 : les zones sont descriptives — l'intensité est inchangée (zon
   assert.equal(avecZones.zones.length, 2);
 });
 
+test("Phase 10 : la distribution électrique est descriptive — figée telle quelle, hors calcul", () => {
+  const sans = construireSnapshot(dossier, [eq(0.5)], { ...extra, distribution: [] });
+  const avec = construireSnapshot(dossier, [eq(0.5)], {
+    ...extra,
+    distribution: [
+      { amperes: 200, tension: 347 },
+      { amperes: 100, tension: 120 },
+    ],
+  });
+  assert.equal(avec.intensite, sans.intensite);
+  assert.equal(avec.bilan.totalEquipementsKwh, sans.bilan.totalEquipementsKwh);
+  assert.deepEqual(avec.distribution, [
+    { amperes: 200, tension: 347 },
+    { amperes: 100, tension: 120 },
+  ]);
+});
+
 test("un changement ultérieur d'un équipement ne modifie pas le snapshot sérialisé (gel)", () => {
   const equipements = [eq(0.5)];
   const fige = JSON.stringify(construireSnapshot(dossier, equipements, extra));
