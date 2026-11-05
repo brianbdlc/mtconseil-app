@@ -28,6 +28,22 @@ export type EquipementSnapshot = {
   facteur_charge: number | null;
   type_id: string | null;
   type: TypeJoint;
+  // Phase 14 : champs fiche alignés sur le rapport Andalos (saisie ingénieur pure, hors calcul).
+  identifiant: string | null;
+  description: string | null;
+  debit_pcm: number | null;
+  air_frais_pct: number | null;
+  ventilateur: string | null;
+  refroidissement: string | null;
+  chauffage: string | null;
+  humidificateur: string | null;
+  capacite_refroidissement_kw: number | null;
+  capacite_chauffage_kw: number | null;
+  efficacite_pct: number | null;
+  constat: string | null;
+  // Chemins Storage des photos désignées (préparés à la soumission, étape de gel).
+  photo_unite_path: string | null;
+  photo_plaque_path: string | null;
 };
 
 export type DossierSnapshot = {
@@ -98,6 +114,21 @@ export function construireSnapshot(
       type_id: e.type_id,
       type_facteur_charge: e.type?.facteur_charge ?? null,
       type_poste: e.type?.poste ?? null,
+      // Phase 14 : champs fiche gelés (descriptifs, hors calcul) + chemins photos désignées.
+      identifiant: e.identifiant,
+      description: e.description,
+      debit_pcm: e.debit_pcm,
+      air_frais_pct: e.air_frais_pct,
+      ventilateur: e.ventilateur,
+      refroidissement: e.refroidissement,
+      chauffage: e.chauffage,
+      humidificateur: e.humidificateur,
+      capacite_refroidissement_kw: e.capacite_refroidissement_kw,
+      capacite_chauffage_kw: e.capacite_chauffage_kw,
+      efficacite_pct: e.efficacite_pct,
+      constat: e.constat,
+      photo_unite_path: e.photo_unite_path,
+      photo_plaque_path: e.photo_plaque_path,
     })),
     // Phase 7 : sections narratives VALIDÉES + textes fixes du modèle GELÉS + leur n° de version
     // (porté sur rapport_versions à l'export). Phase 13 : sommaire/mesures sont dans `textes.*`.

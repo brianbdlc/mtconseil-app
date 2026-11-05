@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateEquipement, lirePlaqueAction, validerChamp } from "../../../actions";
+import { updateEquipement, lirePlaqueAction, validerChamp, definirRolePhoto } from "../../../actions";
 import { UNITES, libellePoste, ligneEquipement } from "@/lib/calc";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
 import { VerrouFiche } from "@/components/verrou-fiche";
@@ -39,18 +39,24 @@ export default async function EquipementPage({
 
   const { data: photos } = await supabase
     .from("photos")
-    .select("id, storage_path, nom_affichage, nom_original")
+    .select("id, storage_path, nom_affichage, nom_original, role")
     .eq("equipement_id", eqId)
     .order("prise_le", { ascending: true });
 
-  const vignettes: { nom: string; url: string }[] = [];
+  const vignettes: { id: string; nom: string; url: string; role: string | null }[] = [];
   if (photos && photos.length) {
     const { data: signed } = await supabase.storage
       .from("photos")
       .createSignedUrls(photos.map((p) => p.storage_path), 3600);
     for (let i = 0; i < photos.length; i++) {
       const url = signed?.[i]?.signedUrl;
-      if (url) vignettes.push({ nom: photos[i].nom_affichage ?? photos[i].nom_original ?? "", url });
+      if (url)
+        vignettes.push({
+          id: photos[i].id,
+          nom: photos[i].nom_affichage ?? photos[i].nom_original ?? "",
+          url,
+          role: photos[i].role ?? null,
+        });
     }
   }
 
@@ -79,14 +85,29 @@ export default async function EquipementPage({
           </p>
         ) : (
           <div className="flex flex-wrap gap-3">
-            {vignettes.map((v, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={v.url}
-                alt={v.nom}
-                className="w-28 h-28 object-cover rounded-md border border-border"
-              />
+            {vignettes.map((v) => (
+              <div key={v.id} className="space-y-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={v.url}
+                  alt={v.nom}
+                  className="w-28 h-28 object-cover rounded-md border border-border"
+                />
+                {/* Rôle dans le rapport : au plus une « unité » et une « plaque » par équipement. */}
+                <form className="flex gap-1">
+                  {(["unite", "plaque"] as const).map((r) => (
+                    <Button
+                      key={r}
+                      type="submit"
+                      variant={v.role === r ? "primary" : "secondary"}
+                      className="h-7 px-2 text-xs"
+                      formAction={definirRolePhoto.bind(null, v.id, id, eqId, v.role === r ? "" : r)}
+                    >
+                      {r === "unite" ? "Unité" : "Plaque"}
+                    </Button>
+                  ))}
+                </form>
+              </div>
             ))}
           </div>
         )}
@@ -304,6 +325,75 @@ export default async function EquipementPage({
             {eq.rendement_source}
           </a>
         )}
+
+        {/* Fiche alignée sur le rapport Andalos (Phase 14, US-56). Saisie pure : N/D si vide. */}
+        <div className="border border-border rounded-md bg-bg px-4 py-3 space-y-4">
+          <div className="text-xs font-medium text-muted">Fiche rapport (Andalos)</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="identifiant">ID (ex. U-1)</Label>
+              <Input id="identifiant" name="identifiant" defaultValue={eq.identifiant ?? ""} />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input id="description" name="description" defaultValue={eq.description ?? ""} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="debit_pcm">Débit (PCM)</Label>
+              <Input id="debit_pcm" name="debit_pcm" className="font-mono" defaultValue={eq.debit_pcm ?? ""} />
+            </div>
+            <div>
+              <Label htmlFor="air_frais_pct">Air frais (%)</Label>
+              <Input id="air_frais_pct" name="air_frais_pct" className="font-mono" defaultValue={eq.air_frais_pct ?? ""} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="ventilateur">Ventilateur</Label>
+              <Input id="ventilateur" name="ventilateur" defaultValue={eq.ventilateur ?? ""} />
+            </div>
+            <div>
+              <Label htmlFor="refroidissement">Refroidissement</Label>
+              <Input id="refroidissement" name="refroidissement" defaultValue={eq.refroidissement ?? ""} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="chauffage">Chauffage</Label>
+              <Input id="chauffage" name="chauffage" defaultValue={eq.chauffage ?? ""} />
+            </div>
+            <div>
+              <Label htmlFor="humidificateur">Humidificateur</Label>
+              <Input id="humidificateur" name="humidificateur" defaultValue={eq.humidificateur ?? ""} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="capacite_refroidissement_kw">Cap. refroid. (kW)</Label>
+              <Input id="capacite_refroidissement_kw" name="capacite_refroidissement_kw" className="font-mono" defaultValue={eq.capacite_refroidissement_kw ?? ""} />
+            </div>
+            <div>
+              <Label htmlFor="capacite_chauffage_kw">Cap. chauff. (kW)</Label>
+              <Input id="capacite_chauffage_kw" name="capacite_chauffage_kw" className="font-mono" defaultValue={eq.capacite_chauffage_kw ?? ""} />
+            </div>
+            <div>
+              <Label htmlFor="efficacite_pct">Efficacité (%)</Label>
+              <Input id="efficacite_pct" name="efficacite_pct" className="font-mono" defaultValue={eq.efficacite_pct ?? ""} />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="constat">Constat / remarques</Label>
+            <textarea
+              id="constat"
+              name="constat"
+              rows={4}
+              className="w-full px-3 py-2 text-sm bg-surface text-ink border border-border rounded-md outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft"
+              defaultValue={eq.constat ?? ""}
+            />
+          </div>
+        </div>
 
         <div className="border border-border rounded-md bg-bg px-4 py-3">
           <div className="text-xs text-muted">Consommation annuelle (calculée par le code)</div>

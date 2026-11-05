@@ -123,6 +123,21 @@ export async function updateEquipement(formData: FormData) {
   const dessert = strOrNull(formData.get("dessert"));
   const rendement = numFr(formData.get("rendement"));
   const rendementSource = strOrNull(formData.get("rendement_source"));
+  // Phase 14 : champs fiche Andalos (saisie ingénieur pure, nullable, hors calcul/IA).
+  const ficheAndalos = {
+    identifiant: strOrNull(formData.get("identifiant")),
+    description: strOrNull(formData.get("description")),
+    debit_pcm: numFr(formData.get("debit_pcm")),
+    air_frais_pct: numFr(formData.get("air_frais_pct")),
+    ventilateur: strOrNull(formData.get("ventilateur")),
+    refroidissement: strOrNull(formData.get("refroidissement")),
+    chauffage: strOrNull(formData.get("chauffage")),
+    humidificateur: strOrNull(formData.get("humidificateur")),
+    capacite_refroidissement_kw: numFr(formData.get("capacite_refroidissement_kw")),
+    capacite_chauffage_kw: numFr(formData.get("capacite_chauffage_kw")),
+    efficacite_pct: numFr(formData.get("efficacite_pct")),
+    constat: strOrNull(formData.get("constat")),
+  };
 
   const supabase = await createClient();
 
@@ -178,6 +193,7 @@ export async function updateEquipement(formData: FormData) {
     dessert,
     rendement,
     rendement_source: rendementSource,
+    ...ficheAndalos,
   };
 
   // Saisie manuelle d'un champ IA => validé=true + confiance effacée.
@@ -208,6 +224,30 @@ export async function updateEquipement(formData: FormData) {
 
   revalidatePath(`/dossiers/${dossierId}`);
   redirect(`/dossiers/${dossierId}`);
+}
+
+/**
+ * Phase 14 : désigne le rôle d'une photo dans la fiche (unité | plaque | aucun). Au plus UNE photo
+ * par rôle et par équipement → on libère d'abord l'ancienne porteuse du même rôle. role="" => retrait.
+ */
+export async function definirRolePhoto(
+  photoId: string,
+  dossierId: string,
+  eqId: string,
+  role: string,
+) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const r = role === "unite" || role === "plaque" ? role : null;
+
+  if (r) {
+    // Unicité du rôle : l'ancienne photo de ce rôle (même équipement) repasse à null.
+    await supabase.from("photos").update({ role: null }).eq("equipement_id", eqId).eq("role", r);
+  }
+  const { error } = await supabase.from("photos").update({ role: r }).eq("id", photoId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/equipements/${eqId}`);
 }
 
 /**
@@ -836,6 +876,22 @@ export async function updateBatiment(formData: FormData) {
 // (US-44) : le rapport affiché en soumis/approuve/exporte vient de là, plus du calcul vivant.
 // Gère brouillon→soumis, a_corriger→soumis et soumis→soumis (re-soumission après retour auto).
 
+// Phase 14 : champs fiche Andalos joints aux équipements pour le gel (descriptifs, hors calcul).
+type FicheAndalos = {
+  identifiant: string | null;
+  description: string | null;
+  debit_pcm: number | null;
+  air_frais_pct: number | null;
+  ventilateur: string | null;
+  refroidissement: string | null;
+  chauffage: string | null;
+  humidificateur: string | null;
+  capacite_refroidissement_kw: number | null;
+  capacite_chauffage_kw: number | null;
+  efficacite_pct: number | null;
+  constat: string | null;
+};
+
 export async function soumettreDossier(formData: FormData) {
   const dossierId = String(formData.get("dossier_id"));
   const raison = strOrNull(formData.get("raison"));
@@ -850,14 +906,30 @@ export async function soumettreDossier(formData: FormData) {
     .single();
   if (eDossier) throw new Error(eDossier.message);
 
-  // Mêmes colonnes que la page rapport, AVEC les champs IA (confiance/validated) pour la règle 1.
+  // Mêmes colonnes que la page rapport, AVEC les champs IA (confiance/validated) pour la règle 1,
+  // + les champs fiche Phase 14 (descriptifs, gelés tels quels).
   const { data: equipements } = await supabase
     .from("equipements")
     .select(
-      "id, nom, puissance_valeur, puissance_unite, heures_par_an, facteur_charge, type_id, type:valeurs_defaut(poste, confirme, facteur_charge), marque_confiance, marque_validated, modele_confiance, modele_validated, puissance_confiance, puissance_validated, annee_confiance, annee_validated",
+      "id, nom, puissance_valeur, puissance_unite, heures_par_an, facteur_charge, type_id, type:valeurs_defaut(poste, confirme, facteur_charge), marque_confiance, marque_validated, modele_confiance, modele_validated, puissance_confiance, puissance_validated, annee_confiance, annee_validated, identifiant, description, debit_pcm, air_frais_pct, ventilateur, refroidissement, chauffage, humidificateur, capacite_refroidissement_kw, capacite_chauffage_kw, efficacite_pct, constat",
     )
     .eq("dossier_id", dossierId)
-    .returns<EquipementAssembleur[]>();
+    .returns<(EquipementAssembleur & FicheAndalos)[]>();
+
+  // Phase 14 : photos désignées (unité/plaque) du dossier → map equipement_id → chemins Storage.
+  const { data: photosRole } = await supabase
+    .from("photos")
+    .select("equipement_id, storage_path, role")
+    .eq("dossier_id", dossierId)
+    .not("role", "is", null);
+  const photosParEq = new Map<string, { unite?: string; plaque?: string }>();
+  for (const ph of photosRole ?? []) {
+    if (!ph.equipement_id || !ph.role) continue;
+    const e = photosParEq.get(ph.equipement_id) ?? {};
+    if (ph.role === "unite") e.unite = ph.storage_path;
+    else if (ph.role === "plaque") e.plaque = ph.storage_path;
+    photosParEq.set(ph.equipement_id, e);
+  }
 
   const { data: paramGaz } = await supabase
     .from("parametres")
@@ -925,8 +997,14 @@ export async function soumettreDossier(formData: FormData) {
   const eqs = equipements ?? [];
   const completude = controleCompletude(eqs, dossier);
 
+  // Attache les chemins des photos désignées à chaque équipement avant le gel (étape 5, Phase 14).
+  const eqsSnapshot = eqs.map((e) => {
+    const ph = photosParEq.get(e.id);
+    return { ...e, photo_unite_path: ph?.unite ?? null, photo_plaque_path: ph?.plaque ?? null };
+  });
+
   const { data: user } = await supabase.auth.getUser();
-  const snapshot = construireSnapshot(dossier, eqs, {
+  const snapshot = construireSnapshot(dossier, eqsSnapshot, {
     facteurGaz,
     totalFacturesKwh: totalFacturesKwh(factures ?? [], facteurGaz),
     textes,
