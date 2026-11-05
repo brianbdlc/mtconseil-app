@@ -71,6 +71,12 @@ function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
       tension: fmt(d.tension),
     })),
     distribution_nb_entrees: (snapshot.distribution ?? []).length,
+    // Phase 11 : registre des révisions. `?? []` : rétrocompat des snapshots gelés AVANT Phase 11.
+    revisions: (snapshot.revisions ?? []).map((r) => ({
+      numero_rev: r.numero ?? "",
+      date_rev: r.date ?? "",
+      description_rev: r.description ?? "",
+    })),
     description_installations: snapshot.textes.description_installations ?? "",
     mesures_mise_en_forme: snapshot.textes.mesures_mise_en_forme ?? "",
     problemes_techniques: snapshot.textes.problemes_techniques ?? "",

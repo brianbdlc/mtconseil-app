@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createEquipement, updateBatiment, updateZone, supprimerZone, updateDistribution, supprimerDistribution } from "../actions";
+import { createEquipement, updateBatiment, updateZone, supprimerZone, updateDistribution, supprimerDistribution, updateRevision, supprimerRevision, prefillRevisions } from "../actions";
 import {
   bilanEnergetique,
   gazEnKwh,
@@ -77,6 +77,13 @@ export default async function DossierPage({
   const { data: distribution } = await supabase
     .from("distribution_electrique")
     .select("id, amperes, tension")
+    .eq("dossier_id", id)
+    .order("ordre", { ascending: true });
+
+  // Phase 11 : registre des révisions descriptif (hors calcul).
+  const { data: revisions } = await supabase
+    .from("revisions")
+    .select("id, numero, date, description, ordre")
     .eq("dossier_id", id)
     .order("ordre", { ascending: true });
 
@@ -351,6 +358,81 @@ export default async function DossierPage({
                 <tr>
                   <td colSpan={3} className="px-4 py-6 text-center text-muted">
                     Aucune entrée électrique.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Registre des révisions (US-59) — descriptif, saisie ingénieur pure (hors calcul) */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-ink">Registre des révisions</h2>
+            <p className="text-xs text-muted">Descriptif — numéro, date et description de chaque révision.</p>
+          </div>
+          <div className="flex gap-2">
+            <form action={prefillRevisions.bind(null, id)}>
+              <Button type="submit" variant="secondary">Pré-remplir depuis les exports</Button>
+            </form>
+            <form action={updateRevision}>
+              <input type="hidden" name="dossier_id" value={id} />
+              <Button type="submit">+ Ajouter une révision</Button>
+            </form>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto border border-border rounded-lg bg-surface">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted border-b border-border">
+                <th className="px-4 py-2 font-medium">Numéro</th>
+                <th className="px-4 py-2 font-medium">Date</th>
+                <th className="px-4 py-2 font-medium">Description</th>
+                <th className="px-4 py-2 font-medium">Ordre</th>
+                <th className="px-4 py-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(revisions ?? []).map((r) => (
+                <tr key={r.id} className="border-b border-border last:border-0 align-top">
+                  <td className="px-4 py-2">
+                    <form id={`rev-${r.id}`} action={updateRevision} className="contents">
+                      <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="dossier_id" value={id} />
+                      <Input name="numero" defaultValue={r.numero ?? ""} form={`rev-${r.id}`} />
+                    </form>
+                  </td>
+                  <td className="px-4 py-2">
+                    <Input name="date" type="date" defaultValue={r.date ?? ""} form={`rev-${r.id}`} />
+                  </td>
+                  <td className="px-4 py-2">
+                    <Input name="description" defaultValue={r.description ?? ""} form={`rev-${r.id}`} />
+                  </td>
+                  <td className="px-4 py-2">
+                    <Input
+                      name="ordre"
+                      className="tabular-nums w-20"
+                      defaultValue={r.ordre ?? 0}
+                      form={`rev-${r.id}`}
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex gap-2">
+                      <Button type="submit" form={`rev-${r.id}`}>Enregistrer</Button>
+                      <form action={supprimerRevision.bind(null, r.id, id)}>
+                        <Button type="submit" variant="secondary">Supprimer</Button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {(revisions ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-muted">
+                    Aucune révision.
                   </td>
                 </tr>
               )}

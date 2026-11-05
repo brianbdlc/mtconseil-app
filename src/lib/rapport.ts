@@ -13,6 +13,7 @@ import {
 import { sommaireExecutif } from "./assembleur.ts";
 import { retourAnnees, investissementNet, type Mesure } from "./mesures.ts";
 import type { Zone } from "./zones.ts";
+import { trierRevisions, type Revision } from "./revisions.ts";
 import type { NarrativeSection } from "./statuts.ts";
 
 // Phase 10 : distribution électrique — descriptif, AUCUNE logique (pas de fichier lib dédié).
@@ -60,6 +61,7 @@ export function construireSnapshot(
     modele: ModeleSnapshot;
     zones?: Zone[]; // Phase 9 : descriptif, hors calcul
     distribution?: DistributionEntree[]; // Phase 10 : descriptif, hors calcul
+    revisions?: Revision[]; // Phase 11 : descriptif, hors calcul
   },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
@@ -121,6 +123,13 @@ export function construireSnapshot(
     distribution: (parametres.distribution ?? []).map((d) => ({
       amperes: d.amperes,
       tension: d.tension,
+    })),
+    // Phase 11 : registre des révisions DESCRIPTIF figé, trié (hors calcul — saisie ingénieur pure).
+    revisions: trierRevisions(parametres.revisions ?? []).map((r) => ({
+      numero: r.numero,
+      date: r.date,
+      description: r.description,
+      ordre: r.ordre,
     })),
     modele: {
       methodologie: parametres.modele.methodologie,
