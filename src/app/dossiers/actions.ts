@@ -16,6 +16,7 @@ import { lirePlaque, type ImageEntree } from "@/lib/plaque";
 import { lireFacture, totalFacturesKwh, type Facture } from "@/lib/factures";
 import { retourAnnees, type Mesure } from "@/lib/mesures";
 import { type Zone } from "@/lib/zones";
+import { type Revision } from "@/lib/revisions";
 import {
   extraireFichesValidees,
   redigerDescriptionInstallations,
@@ -517,6 +518,72 @@ export async function supprimerDistribution(entreeId: string, dossierId: string)
   revalidatePath(`/dossiers/${dossierId}`);
 }
 
+// ───────────────────────── Registre des révisions (Phase 11, US-59) ─────────────────────────
+// Saisie INGÉNIEUR pure, purement DESCRIPTIVE : aucun calcul. `numero` = texte libre, `ordre` = tri.
+// CRUD inline dans la page dossier (patron distribution). Éditer n'invalide PAS le snapshot (voulu :
+// le registre se complète souvent après l'export).
+
+/** Création / édition d'une révision (create si id vide). */
+export async function updateRevision(formData: FormData) {
+  await exige("modifier");
+  const id = strOrNull(formData.get("id"));
+  const dossierId = String(formData.get("dossier_id"));
+  const row = {
+    numero: strOrNull(formData.get("numero")),
+    date: strOrNull(formData.get("date")),
+    description: strOrNull(formData.get("description")),
+    ordre: numFr(formData.get("ordre")) ?? 0,
+  };
+
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("revisions").update(row).eq("id", id)
+    : await supabase.from("revisions").insert({ ...row, dossier_id: dossierId });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+export async function supprimerRevision(revisionId: string, dossierId: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const { error } = await supabase.from("revisions").delete().eq("id", revisionId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+/**
+ * Pré-remplit le registre depuis les exports déjà faits (rapport_versions). Idempotent :
+ * insère une ligne par version absente (dédoublonnage sur `numero`). Bouton manuel, pas de synchro auto.
+ */
+export async function prefillRevisions(dossierId: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+
+  const [{ data: versions }, { data: existantes }] = await Promise.all([
+    supabase.from("rapport_versions").select("version, exporte_le").eq("dossier_id", dossierId),
+    supabase.from("revisions").select("numero").eq("dossier_id", dossierId),
+  ]);
+
+  const dejaLa = new Set((existantes ?? []).map((r) => r.numero));
+  const aInserer = (versions ?? [])
+    .filter((v) => !dejaLa.has(String(v.version)))
+    .map((v) => ({
+      dossier_id: dossierId,
+      numero: String(v.version),
+      date: v.exporte_le ? String(v.exporte_le).slice(0, 10) : null,
+      description: "",
+      ordre: v.version,
+    }));
+
+  if (aInserer.length) {
+    const { error } = await supabase.from("revisions").insert(aInserer);
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
 // ───────────────────────── Sections narratives (Phase 7, US-41/42/43) ─────────────────────────
 // L'IA RÉDIGE un brouillon (source='ia', valide=false) sous validation ; sinon saisie à la main.
 // L'assembleur ne lit QUE valide=true. upsert sur (dossier_id, section).
@@ -867,6 +934,14 @@ export async function soumettreDossier(formData: FormData) {
     .order("ordre", { ascending: true })
     .returns<DistributionEntree[]>();
 
+  // Phase 11 : registre des révisions descriptif, gelé dans le snapshot (hors calcul).
+  const { data: revisions } = await supabase
+    .from("revisions")
+    .select("numero, date, description, ordre")
+    .eq("dossier_id", dossierId)
+    .order("ordre", { ascending: true })
+    .returns<Revision[]>();
+
   const eqs = equipements ?? [];
   const completude = controleCompletude(eqs, dossier);
 
@@ -879,6 +954,7 @@ export async function soumettreDossier(formData: FormData) {
     modele,
     zones: zones ?? [],
     distribution: distribution ?? [],
+    revisions: revisions ?? [],
   });
 
   const update: Record<string, unknown> = {

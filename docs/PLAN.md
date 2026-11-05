@@ -274,11 +274,11 @@ Un registre des révisions (numéro, date, description) tracé par l'ingénieur,
 
 ### Critères d'acceptation
 
-- [ ] Migration **additive** : table `revisions` (dossier_id, numero, date, description) avec RLS et **journal**.
-- [ ] CRUD du registre ; option de **pré-remplissage** depuis `rapport_versions` (chaque export = une ligne), description éditable à la main.
-- [ ] Page « registre des révisions » rendue dans le `.docx`, triée par numéro.
-- [ ] Table des matières **automatique** : champ TOC natif Word inséré + styles de titres appliqués ; se met à jour à l'ouverture (F9/au chargement). *ponytail : champ TOC natif, pas de TOC calculée à la main — ceiling : si Luis veut une TOC figée au rendu, la pré-générer deviendra nécessaire.*
-- [ ] Test à assertions : ordre des révisions ; présence des styles de titres sur les sections.
+- [x] Migration **additive** : table `revisions` (dossier_id, numero, date, description) avec RLS et **journal**.
+- [x] CRUD du registre ; option de **pré-remplissage** depuis `rapport_versions` (chaque export = une ligne), description éditable à la main.
+- [x] Page « registre des révisions » rendue dans le `.docx`, triée par numéro.
+- [x] Table des matières **automatique** : champ TOC natif Word inséré + styles de titres appliqués ; se met à jour à l'ouverture (F9/au chargement). *ponytail : champ TOC natif, pas de TOC calculée à la main — ceiling : si Luis veut une TOC figée au rendu, la pré-générer deviendra nécessaire.*
+- [x] Test à assertions : ordre des révisions ; présence des styles de titres sur les sections.
 
 ## Bloquée par
 
