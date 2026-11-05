@@ -8,9 +8,15 @@ export type Section = (typeof SECTIONS)[number];
 // Sections narratives du rapport (Phase 7). Liste fixe REDITE dans le CHECK de rapport_textes
 // (migration phase7) — garder les deux en phase. `ia` = brouillon possible via redaction.ts ;
 // `humain` = jugement de l'ingénieur, saisi à la main (jamais d'IA).
+// Phase 13 : le sommaire exécutif et les mesures deviennent des emplacements LIBRES (texte collé),
+// ordonnés selon le vrai rapport. `mesures_mise_en_forme` (dépendait du ROI calculé, supprimé) est
+// retirée de l'UI mais conservée dans le CHECK SQL (anciennes lignes/snapshots).
 export const NARRATIVE_SECTIONS = [
+  { cle: "sommaire", label: "Sommaire exécutif", source: "humain" },
   { cle: "description_installations", label: "Description des installations", source: "ia" },
-  { cle: "mesures_mise_en_forme", label: "Mesures d'amélioration (mise en forme)", source: "ia" },
+  { cle: "humidification_controles", label: "Humidification et contrôles", source: "humain" },
+  { cle: "electricite", label: "Électricité", source: "humain" },
+  { cle: "mesures_etudiees", label: "Mesures étudiées", source: "humain" },
   { cle: "problemes_techniques", label: "Problèmes techniques", source: "humain" },
   { cle: "phasage_travaux", label: "Phasage des travaux", source: "humain" },
   { cle: "risques_sse", label: "Risques SSE", source: "humain" },

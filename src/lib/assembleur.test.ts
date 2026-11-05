@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 import {
   controleCompletude,
   controleCoherence,
-  sommaireExecutif,
   type EquipementAssembleur,
 } from "./assembleur.ts";
-import { bilanEnergetique } from "./calc.ts";
 
 // Équipement complet et sain (0 problème) : type, puissance/heures/facteur présents, aucune
 // lecture IA en attente.
@@ -118,20 +116,3 @@ test("controleCoherence : dans le seuil => depasse=false ; au-delà => true", ()
   assert.ok(Math.abs(sur.ecartPct! - 50) < 1e-9);
 });
 
-test("sommaireExecutif : phrase déterministe + lignes, aucun nombre inventé", () => {
-  const bilan = bilanEnergetique([
-    { poste: "chauffage", conso: 8000, reposeSurValeurAConfirmer: false, valide: true },
-    { poste: "eclairage", conso: 2000, reposeSurValeurAConfirmer: false, valide: true },
-  ]);
-  const s = sommaireExecutif({
-    dossier: { usage: "bureaux", annee_construction: 1990, superficie_valeur: 100, superficie_unite: "m2" },
-    bilan,
-    intensite: 100,
-    gazKwh: null,
-  });
-  assert.equal(s.texte.includes("bureaux"), true);
-  assert.equal(s.texte.includes("1990"), true);
-  assert.equal(s.texte.includes("Chauffage"), true); // poste dominant
-  assert.equal(s.lignesResume.find((l) => l.label === "Poste dominant")!.valeur.includes("Chauffage"), true);
-  assert.equal(s.lignesResume.find((l) => l.label === "Gaz saisi (équivalent)")!.valeur, "—");
-});

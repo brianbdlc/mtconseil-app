@@ -18,7 +18,6 @@ const dossier: DossierSnapshot = {
 const extra = {
   facteurGaz: null,
   totalFacturesKwh: null,
-  mesures: [],
   textes: {},
   modele: { methodologie: null, norme_ashrae: null, risques_sse: null, version: 1 },
 };

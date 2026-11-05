@@ -4,9 +4,8 @@ import { createHash } from "node:crypto";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { createClient } from "@/lib/supabase/server";
-import { libellePoste } from "@/lib/calc";
-import { sommeSuperficieZonesM2 } from "@/lib/zones";
 import type { Snapshot } from "@/lib/rapport";
+import { donneesRender } from "@/lib/rapport-render";
 
 // ponytail: export SYNCHRONE + dépôt Storage + versionnage (Phase 5, US-48). Rendu DEPUIS le
 // snapshot gelé, jamais du calcul vivant. SWAP MODÈLE (Phase 7) → remplacer
@@ -20,78 +19,11 @@ import type { Snapshot } from "@/lib/rapport";
 
 const PDF_MIME = "application/pdf";
 
-const fmt = (n: number | null | undefined) =>
-  n === null || n === undefined
-    ? ""
-    : new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 0 }).format(n);
-
 function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
   const templatePath = path.join(process.cwd(), "src/templates/rapport-provisoire.docx");
   const zip = new PizZip(readFileSync(templatePath, "binary"));
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-
-  doc.render({
-    client: snapshot.dossier.client,
-    adresse: snapshot.dossier.adresse ?? "",
-    statut,
-    sommaire_texte: snapshot.sommaire.texte,
-    intensite: snapshot.intensite !== null ? fmt(snapshot.intensite) : "—",
-    total_kwh: fmt(snapshot.bilan.totalEquipementsKwh),
-    gaz_kwh: snapshot.gazKwh !== null ? fmt(snapshot.gazKwh) : "—",
-    bilan_postes: snapshot.bilan.parPoste.map((p) => ({
-      poste: libellePoste(p.poste),
-      kwh: fmt(p.kwh),
-      pct: Math.round(p.pct),
-    })),
-    equipements: snapshot.equipements.map((e) => ({
-      nom: e.nom ?? "",
-      puissance_valeur: e.puissance_valeur ?? "",
-      puissance_unite: e.puissance_unite ?? "",
-      conso_kwh_an: fmt(e.conso),
-    })),
-    // Phase 7 : mesures/ROI, sections narratives validées, textes fixes du modèle gelés + version.
-    mesures: snapshot.mesures.map((m) => ({
-      nom: m.nom ?? "",
-      economies_annuelles: fmt(m.economies_annuelles),
-      cout_investissement: fmt(m.cout_investissement),
-      subvention: fmt(m.subvention),
-      retour_annees:
-        m.retour_annees === null
-          ? "—"
-          : new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 2 }).format(m.retour_annees),
-    })),
-    // Phase 9 : zones descriptives (hors calcul) + total informatif.
-    zones: snapshot.zones.map((z) => ({
-      nom_zone: z.nom ?? "",
-      superficie_zone: fmt(z.superficie),
-      unite_zone: z.unite === "pi2" ? "pi²" : z.unite === "m2" ? "m²" : "",
-    })),
-    zones_total_m2: fmt(sommeSuperficieZonesM2(snapshot.zones)),
-    // Phase 10 : distribution électrique descriptive + compteur d'entrées dérivé des lignes.
-    // `?? []` : rétrocompat des snapshots gelés AVANT la Phase 10 (sans champ distribution).
-    distribution: (snapshot.distribution ?? []).map((d) => ({
-      amperes: fmt(d.amperes),
-      tension: fmt(d.tension),
-    })),
-    distribution_nb_entrees: (snapshot.distribution ?? []).length,
-    // Phase 11 : registre des révisions. `?? []` : rétrocompat des snapshots gelés AVANT Phase 11.
-    revisions: (snapshot.revisions ?? []).map((r) => ({
-      numero_rev: r.numero ?? "",
-      date_rev: r.date ?? "",
-      description_rev: r.description ?? "",
-    })),
-    description_installations: snapshot.textes.description_installations ?? "",
-    mesures_mise_en_forme: snapshot.textes.mesures_mise_en_forme ?? "",
-    problemes_techniques: snapshot.textes.problemes_techniques ?? "",
-    phasage_travaux: snapshot.textes.phasage_travaux ?? "",
-    risques_sse: snapshot.textes.risques_sse ?? "",
-    conclusions: snapshot.textes.conclusions ?? "",
-    methodologie: snapshot.modele.methodologie ?? "",
-    norme_ashrae: snapshot.modele.norme_ashrae ?? "",
-    modele_risques_sse: snapshot.modele.risques_sse ?? "",
-    modele_version: snapshot.modele_version,
-  });
-
+  doc.render(donneesRender(snapshot, statut));
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 

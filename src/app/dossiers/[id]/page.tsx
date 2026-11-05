@@ -132,9 +132,6 @@ export default async function DossierPage({
             <Link href={`/dossiers/${id}/factures`}>
               <Button variant="secondary">Factures</Button>
             </Link>
-            <Link href={`/dossiers/${id}/mesures`}>
-              <Button variant="secondary">Mesures</Button>
-            </Link>
             <Link href={`/dossiers/${id}/rapport`}>
               <Button variant="secondary">Rapport</Button>
             </Link>

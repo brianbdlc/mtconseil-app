@@ -1,11 +1,10 @@
 // Règle fondatrice (4e acteur, l'assembleur) : LE CODE vérifie avant transmission à Luis.
-// Complétude (bloquant), cohérence estimé vs factures (Phase 6), sommaire exécutif — zéro IA.
+// Complétude (bloquant), cohérence estimé vs factures (Phase 6) — zéro IA.
 // Réutilise ligneEquipement/types de calc.ts et verifierPlausibilite de photos.ts.
+// Phase 13 : le sommaire exécutif n'est plus calculé (devenu emplacement libre) — retiré d'ici.
 
 import {
   ligneEquipement,
-  libellePoste,
-  type Bilan,
   type LigneBilan,
 } from "./calc.ts";
 import { verifierPlausibilite } from "./photos.ts";
@@ -155,71 +154,6 @@ export function controleCoherence(
   }
   const ecartPct = (Math.abs(totalEquipementsKwh - totalFacturesKwh) / totalFacturesKwh) * 100;
   return { disponible: true, ecartPct, depasse: ecartPct > seuilPct };
-}
-
-const nf = (max = 0) => new Intl.NumberFormat("fr-CA", { maximumFractionDigits: max });
-
-export type Sommaire = {
-  texte: string;
-  lignesResume: { label: string; valeur: string }[];
-};
-
-/**
- * Sommaire exécutif + tableau résumé (PRD : « rempli par le code »). Aucun nombre inventé —
- * tout vient de bilan/calc. Phrase française déterministe.
- */
-export function sommaireExecutif(input: {
-  dossier: {
-    usage: string | null;
-    annee_construction: number | null;
-    superficie_valeur: number | null;
-    superficie_unite: string | null;
-  };
-  bilan: Bilan;
-  intensite: number | null;
-  gazKwh: number | null;
-}): Sommaire {
-  const { dossier, bilan, intensite, gazKwh } = input;
-
-  const dominant = bilan.parPoste.reduce<{ poste: string; kwh: number; pct: number } | null>(
-    (max, p) => (max === null || p.kwh > max.kwh ? p : max),
-    null,
-  );
-
-  const superficieLabel =
-    dossier.superficie_valeur !== null && dossier.superficie_unite
-      ? `${nf(0).format(dossier.superficie_valeur)} ${dossier.superficie_unite === "pi2" ? "pi²" : "m²"}`
-      : "—";
-
-  const parties: string[] = ["Ce bâtiment"];
-  if (dossier.usage) parties.push(`à usage de ${dossier.usage}`);
-  if (dossier.annee_construction !== null) parties.push(`construit en ${dossier.annee_construction}`);
-  if (dossier.superficie_valeur !== null && dossier.superficie_unite) {
-    parties.push(`d'une superficie de ${superficieLabel}`);
-  }
-  let texte = parties.join(", ");
-  if (bilan.totalEquipementsKwh > 0) {
-    texte += ` présente une consommation totale estimée de ${nf(0).format(bilan.totalEquipementsKwh)} kWh/an`;
-    if (intensite !== null) texte += `, soit une intensité de ${nf(1).format(intensite)} kWh/m²`;
-    texte += ".";
-    if (dominant) {
-      texte += ` Le poste dominant est ${libellePoste(dominant.poste)} (${Math.round(dominant.pct)} %).`;
-    }
-  } else {
-    texte += " ne présente aucune consommation estimée (données équipements incomplètes).";
-  }
-
-  const lignesResume: { label: string; valeur: string }[] = [
-    { label: "Superficie", valeur: superficieLabel },
-    { label: "Usage", valeur: dossier.usage ?? "—" },
-    { label: "Année de construction", valeur: dossier.annee_construction !== null ? String(dossier.annee_construction) : "—" },
-    { label: "Consommation totale estimée", valeur: `${nf(0).format(bilan.totalEquipementsKwh)} kWh/an` },
-    { label: "Intensité énergétique", valeur: intensite !== null ? `${nf(1).format(intensite)} kWh/m²` : "—" },
-    { label: "Poste dominant", valeur: dominant ? `${libellePoste(dominant.poste)} (${Math.round(dominant.pct)} %)` : "—" },
-    { label: "Gaz saisi (équivalent)", valeur: gazKwh !== null ? `${nf(0).format(gazKwh)} kWh` : "—" },
-  ];
-
-  return { texte, lignesResume };
 }
 
 // Réexport pour les appelants (page, export) qui construisent les lignes de bilan.

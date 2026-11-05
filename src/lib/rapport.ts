@@ -1,7 +1,8 @@
 // Gel du snapshot à la soumission (US-44). Le snapshot fige TOUT ce que le rapport affiche
-// (bilan, intensité, gaz, sommaire) + par équipement son type_id, facteur et poste figés —
-// requis par approuver_dossier (A3) pour refuser l'approbation si une valeur par défaut a bougé.
-// Zéro IA, zéro nombre inventé : tout vient de calc.ts / assembleur.ts.
+// (bilan, intensité, gaz) + par équipement son type_id, facteur et poste figés — requis par
+// approuver_dossier (A3) pour refuser l'approbation si une valeur par défaut a bougé.
+// Zéro IA, zéro nombre inventé : tout vient de calc.ts. Phase 13 : le sommaire (calculé) et les
+// mesures (ROI) sortent du snapshot — devenus des emplacements de texte libre (`textes.*`).
 
 import {
   bilanEnergetique,
@@ -10,8 +11,6 @@ import {
   ligneEquipement,
   type LigneBilan,
 } from "./calc.ts";
-import { sommaireExecutif } from "./assembleur.ts";
-import { retourAnnees, investissementNet, type Mesure } from "./mesures.ts";
 import type { Zone } from "./zones.ts";
 import { trierRevisions, type Revision } from "./revisions.ts";
 import type { NarrativeSection } from "./statuts.ts";
@@ -56,7 +55,6 @@ export function construireSnapshot(
   parametres: {
     facteurGaz: number | null;
     totalFacturesKwh: number | null;
-    mesures: Mesure[];
     textes: Partial<Record<NarrativeSection, string>>; // seulement les sections valide=true
     modele: ModeleSnapshot;
     zones?: Zone[]; // Phase 9 : descriptif, hors calcul
@@ -75,7 +73,6 @@ export function construireSnapshot(
     dossier.superficie_valeur,
     dossier.superficie_unite,
   );
-  const sommaire = sommaireExecutif({ dossier, bilan, intensite, gazKwh });
 
   return {
     dossier: {
@@ -93,7 +90,6 @@ export function construireSnapshot(
     intensite,
     gazKwh,
     totalFacturesKwh: parametres.totalFacturesKwh, // gelé pour la cohérence du rapport figé (Phase 6)
-    sommaire,
     equipements: equipements.map((e) => ({
       nom: e.nom,
       puissance_valeur: e.puissance_valeur,
@@ -103,16 +99,8 @@ export function construireSnapshot(
       type_facteur_charge: e.type?.facteur_charge ?? null,
       type_poste: e.type?.poste ?? null,
     })),
-    // Phase 7 : ROI calculé par le CODE (zéro valeur inventée), sections narratives VALIDÉES,
-    // textes fixes du modèle GELÉS + leur n° de version (porté sur rapport_versions à l'export).
-    mesures: parametres.mesures.map((m) => ({
-      nom: m.nom,
-      economies_annuelles: m.economies_annuelles,
-      cout_investissement: m.cout_investissement,
-      subvention: m.subvention,
-      net: investissementNet(m),
-      retour_annees: retourAnnees(m),
-    })),
+    // Phase 7 : sections narratives VALIDÉES + textes fixes du modèle GELÉS + leur n° de version
+    // (porté sur rapport_versions à l'export). Phase 13 : sommaire/mesures sont dans `textes.*`.
     textes: parametres.textes,
     // Phase 9 : zones DESCRIPTIVES figées (hors calcul — l'intensité reste basée sur la superficie totale).
     zones: (parametres.zones ?? []).map((z) => ({
@@ -144,4 +132,16 @@ export function construireSnapshot(
   };
 }
 
-export type Snapshot = ReturnType<typeof construireSnapshot>;
+// Champs LEGACY optionnels : lecture seule des snapshots gelés AVANT la Phase 13 (sommaire calculé
+// + mesures/ROI). Les nouveaux snapshots ne les écrivent plus (→ undefined) ; l'export les lit en repli.
+export type Snapshot = ReturnType<typeof construireSnapshot> & {
+  sommaire?: { texte: string; lignesResume?: { label: string; valeur: string }[] };
+  mesures?: {
+    nom: string | null;
+    economies_annuelles: number | null;
+    cout_investissement: number | null;
+    subvention: number | null;
+    net: number | null;
+    retour_annees: number | null;
+  }[];
+};
