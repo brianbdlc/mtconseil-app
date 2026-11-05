@@ -102,6 +102,64 @@ test("Phase 14 : NOUVEAU snapshot → champs fiche Andalos + tags image présent
   assert.equal(e.a_photo_plaque, true);
 });
 
+test("Phase 15 : NOUVEAU snapshot → tableaux mensuels, tarifs, GES, intensité réelle, $/pi², degrés-jours, graphiques", () => {
+  const factures = [
+    { id: "e1", energie: "elec" as const, periode_debut: "2024-01-01", periode_fin: "2024-01-31", conso_valeur: 1000, conso_unite: "kWh", montant: 120, confirme: true },
+    { id: "g1", energie: "gaz" as const, periode_debut: "2024-01-01", periode_fin: "2024-01-31", conso_valeur: 100, conso_unite: "m3", montant: 50, confirme: true },
+  ];
+  const snap = construireSnapshot(dossier, [], {
+    facteurGaz: 10.33,
+    totalFacturesKwh: 2033,
+    textes: {},
+    modele,
+    factures,
+    facteurGesElec: 0.0006,
+    facteurGesGaz: 1.879,
+    degresJours: [{ mois: "2024-01-01", valeur: 800 }],
+    graphiqueDjElecPath: "d1/graphique_dj_elec.png",
+    graphiqueDjGazPath: null,
+  });
+  const d = donneesRender(snap, "approuve");
+  assert.equal(d.factures_mensuel_elec.length, 1);
+  assert.equal(d.factures_mensuel_elec[0].mois, "2024-01-01");
+  assert.match(d.factures_mensuel_elec[0].montant, /120/);
+  assert.equal(d.factures_mensuel_gaz.length, 1);
+  assert.notEqual(d.tarif_moyen_elec, "");
+  assert.notEqual(d.ges_total, "");
+  assert.notEqual(d.intensite_reelle, "—");
+  assert.notEqual(d.cout_pi2, "—");
+  assert.equal(d.degres_jours.length, 1);
+  assert.equal(d.degres_jours[0].mois_dj, "2024-01-01");
+  assert.equal(d.graphique_dj_elec, "d1/graphique_dj_elec.png");
+  assert.equal(d.a_graphique_dj_elec, true);
+  assert.equal(d.a_graphique_dj_gaz, false); // chemin null
+});
+
+test("Phase 15 : ANCIEN snapshot (sans factures_mensuel) → boucles vides, tarifs vides, zéro orphelin", () => {
+  const base = construireSnapshot(dossier, [], { facteurGaz: null, totalFacturesKwh: null, textes: {}, modele });
+  // Snapshot figé AVANT la Phase 15 : aucun champ facture mensuel / GES / graphiques.
+  const sansPhase15 = { ...base } as Record<string, unknown>;
+  delete sansPhase15.factures_mensuel;
+  delete sansPhase15.tarif_moyen_elec;
+  delete sansPhase15.tarif_moyen_gaz;
+  delete sansPhase15.ges_total;
+  delete sansPhase15.intensite_reelle;
+  delete sansPhase15.cout_pi2;
+  delete sansPhase15.degres_jours;
+  delete sansPhase15.graphique_dj_elec_path;
+  delete sansPhase15.graphique_dj_gaz_path;
+  const d = donneesRender(sansPhase15 as unknown as Snapshot, "exporte");
+  assert.equal(d.factures_mensuel_elec.length, 0);
+  assert.equal(d.factures_mensuel_gaz.length, 0);
+  assert.equal(d.tarif_moyen_elec, "");
+  assert.equal(d.ges_total, "");
+  assert.equal(d.intensite_reelle, "—");
+  assert.equal(d.cout_pi2, "—");
+  assert.equal(d.degres_jours.length, 0);
+  assert.equal(d.graphique_dj_elec, "");
+  assert.equal(d.a_graphique_dj_elec, false);
+});
+
 test("Phase 14 : ANCIEN snapshot (sans champs fiche ni photos) → chaînes vides, a_photo_*=false, zéro orphelin", () => {
   const base = construireSnapshot(dossier, [], { facteurGaz: null, totalFacturesKwh: null, textes: {}, modele });
   // Équipement figé AVANT la Phase 14 : seulement les champs pré-Phase-14.

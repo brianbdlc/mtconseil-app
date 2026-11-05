@@ -77,6 +77,18 @@ export function intensiteKwhM2(
   return totalEquipementsKwh / toM2(superficieValeur, superficieUnite);
 }
 
+/** Coût par pi² ($/pi²) = montant total / superficie en pi². null si superficie absente/≤0. */
+export function coutParPi2(
+  totalMontant: number,
+  superficieValeur: number | null,
+  superficieUnite: string | null,
+): number | null {
+  if (superficieValeur === null || superficieValeur <= 0 || !superficieUnite) {
+    return null;
+  }
+  return totalMontant / (toM2(superficieValeur, superficieUnite) / PI2_EN_M2);
+}
+
 export type GazUnite = "m3" | "GJ" | "kWh";
 
 const GJ_EN_KWH = 1000 / 3.6; // 1 GJ = 277.77… kWh

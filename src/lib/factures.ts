@@ -18,6 +18,7 @@ export type Facture = {
   periode_fin: string | null;
   conso_valeur: number | null;
   conso_unite: string | null;
+  montant: number | null; // $ total de la facture (Phase 15) ; null si illisible/non saisi
   confirme: boolean;
 };
 
@@ -47,6 +48,106 @@ export function totalFacturesKwh(factures: Facture[], facteurGaz: number | null)
     }
   }
   return nb === 0 ? null : total;
+}
+
+// ───────────────────────── Phase 15 : tableaux mensuels, tarifs, GES ─────────────────────────
+
+/** Tarif moyen $/unité = montant / conso (unité d'origine conservée). null si montant/conso absent ou ≤0. */
+export function tarifMoyen(f: Facture): number | null {
+  if (f.montant === null || f.conso_valeur === null || f.conso_valeur <= 0) return null;
+  return f.montant / f.conso_valeur;
+}
+
+export type ParamsGes = {
+  facteurGesGaz: number | null;
+  facteurGesElec: number | null;
+  facteurM3: number | null;
+};
+
+/**
+ * GES d'une facture (kgCO2e). Élec → kWh (factureEnKwh) × facteurGesElec.
+ * Gaz m³ → conso × facteurGesGaz. Gaz GJ/kWh → reconverti en m³ via facteurM3 puis × facteurGesGaz.
+ * null si un facteur requis manque. // ponytail: GES gaz supposé facturé en m³ ; GJ reconverti via
+ * facteurM3 — ceiling : facteur GES par GJ dédié si Luis facture en GJ.
+ */
+export function gesFacture(f: Facture, p: ParamsGes): number | null {
+  if (f.conso_valeur === null || !f.conso_unite || !f.energie) return null;
+  if (f.energie === "elec") {
+    if (p.facteurGesElec === null) return null;
+    const kwh = factureEnKwh(f, p.facteurM3);
+    return kwh === null ? null : kwh * p.facteurGesElec;
+  }
+  // gaz
+  if (p.facteurGesGaz === null) return null;
+  if (f.conso_unite === "m3") return f.conso_valeur * p.facteurGesGaz;
+  // GJ ou kWh : passer par les kWh (gazEnKwh) puis reconvertir en m³ via facteurM3.
+  if (p.facteurM3 === null || p.facteurM3 <= 0) return null;
+  const kwh = gazEnKwh({ quantite: f.conso_valeur, unite: f.conso_unite, facteurM3: p.facteurM3 });
+  return kwh === null ? null : (kwh / p.facteurM3) * p.facteurGesGaz;
+}
+
+export type LigneMensuelle = {
+  mois: string | null; // periode_debut (étiquette)
+  conso: number | null;
+  unite: string | null;
+  montant: number | null;
+  tarif: number | null; // $/unité
+  ges: number | null; // kgCO2e
+};
+
+export type TableauEnergie = {
+  lignes: LigneMensuelle[];
+  total_conso: number | null;
+  total_montant: number | null;
+  total_ges: number | null;
+  tarif_moyen: number | null; // total_montant / total_conso
+};
+
+function tableauVide(): TableauEnergie {
+  return { lignes: [], total_conso: null, total_montant: null, total_ges: null, tarif_moyen: null };
+}
+
+/**
+ * Tableaux mensuels par énergie à partir des factures CONFIRMÉES, triées par période.
+ * Une facture = une ligne (étiquetée par periode_debut). // ponytail: 1 facture = 1 ligne ; pas de
+ * proratisation multi-mois — ceiling : découper par mois calendaire si une facture couvre >1 mois.
+ */
+export function tableauMensuel(
+  factures: Facture[],
+  p: ParamsGes,
+): { elec: TableauEnergie; gaz: TableauEnergie } {
+  const out = { elec: tableauVide(), gaz: tableauVide() };
+  for (const energie of ["elec", "gaz"] as const) {
+    const liste = factures
+      .filter((f) => f.confirme && f.energie === energie)
+      .sort((a, b) => (a.periode_debut ?? "").localeCompare(b.periode_debut ?? ""));
+    const t = out[energie];
+    let conso = 0;
+    let montant = 0;
+    let ges = 0;
+    let aConso = false;
+    let aMontant = false;
+    let aGes = false;
+    for (const f of liste) {
+      const ges1 = gesFacture(f, p);
+      t.lignes.push({
+        mois: f.periode_debut,
+        conso: f.conso_valeur,
+        unite: f.conso_unite,
+        montant: f.montant,
+        tarif: tarifMoyen(f),
+        ges: ges1,
+      });
+      if (f.conso_valeur !== null) { conso += f.conso_valeur; aConso = true; }
+      if (f.montant !== null) { montant += f.montant; aMontant = true; }
+      if (ges1 !== null) { ges += ges1; aGes = true; }
+    }
+    t.total_conso = aConso ? conso : null;
+    t.total_montant = aMontant ? montant : null;
+    t.total_ges = aGes ? ges : null;
+    t.tarif_moyen = aMontant && aConso && conso > 0 ? montant / conso : null;
+  }
+  return out;
 }
 
 export type DouteFacture = { factureId: string; message: string };
@@ -100,6 +201,7 @@ export type FactureProposee = {
   periode_fin: string | null;
   conso_valeur: number | null;
   conso_unite: ConsoUnite | null;
+  montant: number | null;
   confiance: Confiance;
 };
 
@@ -115,6 +217,7 @@ const SCHEMA = {
     periode_fin: { anyOf: [{ type: "string" }, { type: "null" }] },
     conso_valeur: { anyOf: [{ type: "number" }, { type: "null" }] },
     conso_unite: { anyOf: [{ type: "string", enum: CONSO_UNITES }, { type: "null" }] },
+    montant: { anyOf: [{ type: "number" }, { type: "null" }] },
     confiance: { type: "string", enum: CONFIANCE_ENUM },
   },
   required: [
@@ -124,6 +227,7 @@ const SCHEMA = {
     "periode_fin",
     "conso_valeur",
     "conso_unite",
+    "montant",
     "confiance",
   ],
 } as const;
@@ -134,6 +238,7 @@ Règles absolues :
 - energie : "elec" (électricité) ou "gaz" (gaz naturel) ; null si indéterminable.
 - CONSERVE l'unité de consommation telle qu'imprimée (kWh, m3 ou GJ). Ne convertis JAMAIS.
 - Si l'unité imprimée n'est pas kWh, m3 ou GJ, mets conso_valeur ET conso_unite à null.
+- montant : total $ facturé pour l'énergie (nombre, sans symbole) ; null si illisible.
 - Dates de période au format AAAA-MM-JJ ; null si absentes ou illisibles.
 - confiance globale de la lecture : "lisible" (clair), "partiel" (ambigu), "illisible" (quasi illisible).`;
 

@@ -413,6 +413,7 @@ export async function lireFactureAction(factureId: string, dossierId: string) {
       periode_fin: p.periode_fin,
       conso_valeur: p.conso_valeur,
       conso_unite: p.conso_unite,
+      montant: p.montant,
       conso_confiance: p.confiance,
       source: "ia",
       confirme: false,
@@ -439,6 +440,7 @@ export async function updateFacture(formData: FormData) {
     periode_fin: strOrNull(formData.get("periode_fin")),
     conso_valeur: numFr(formData.get("conso_valeur")),
     conso_unite: strOrNull(formData.get("conso_unite")),
+    montant: numFr(formData.get("montant")),
     confirme: formData.get("confirme") === "on",
     source: "manuel" as const,
   };
@@ -522,6 +524,51 @@ export async function supprimerZone(zoneId: string, dossierId: string) {
   const { error } = await supabase.from("zones").delete().eq("id", zoneId);
   if (error) throw new Error(error.message);
   revalidatePath(`/dossiers/${dossierId}`);
+}
+
+// ───────────────────────── Degrés-jours (Phase 15, US-55) ─────────────────────────
+// Saisie INGÉNIEUR manuelle : un relevé mensuel de degrés-jours. Descriptif (va aux graphiques
+// collés d'Optima + au tableau). CRUD inline, patron zones. Figé au snapshot à la soumission.
+
+/** Création / édition d'un relevé de degrés-jours (create si id vide). */
+export async function updateDegresJours(formData: FormData) {
+  await exige("modifier");
+  const id = strOrNull(formData.get("id"));
+  const dossierId = String(formData.get("dossier_id"));
+  const row = {
+    mois: strOrNull(formData.get("mois")),
+    valeur: numFr(formData.get("valeur")),
+  };
+
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("degres_jours").update(row).eq("id", id)
+    : await supabase.from("degres_jours").insert({ ...row, dossier_id: dossierId });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dossiers/${dossierId}/factures`);
+}
+
+export async function supprimerDegresJours(entreeId: string, dossierId: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const { error } = await supabase.from("degres_jours").delete().eq("id", entreeId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}/factures`);
+}
+
+// ───────────────────────── Graphiques degrés-jours (Phase 15, US-55) ─────────────────────────
+// Image PNG par énergie, COLLÉE d'Optima (l'app ne la produit ni ne la lit). Chemin stocké sur
+// dossiers (patron enregistrerOptima) ; bucket 'factures' réutilisé. Un graphique par énergie.
+
+/** Pose le chemin Storage du graphique degrés-jours d'une énergie ('elec'|'gaz'). */
+export async function enregistrerGraphique(dossierId: string, energie: "elec" | "gaz", path: string) {
+  await exige("modifier");
+  const colonne = energie === "elec" ? "graphique_dj_elec_path" : "graphique_dj_gaz_path";
+  const supabase = await createClient();
+  const { error } = await supabase.from("dossiers").update({ [colonne]: path }).eq("id", dossierId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}/factures`);
 }
 
 // ───────────────────────── Distribution électrique (Phase 10, US-54) ─────────────────────────
@@ -900,7 +947,7 @@ export async function soumettreDossier(formData: FormData) {
   const { data: dossier, error: eDossier } = await supabase
     .from("dossiers")
     .select(
-      "client, adresse, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite, gaz_periode, optima_path, optima_sha256, optima_confirme",
+      "client, adresse, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite, gaz_periode, optima_path, optima_sha256, optima_confirme, graphique_dj_elec_path, graphique_dj_gaz_path",
     )
     .eq("id", dossierId)
     .single();
@@ -931,19 +978,27 @@ export async function soumettreDossier(formData: FormData) {
     photosParEq.set(ph.equipement_id, e);
   }
 
-  const { data: paramGaz } = await supabase
+  // Facteur de conversion gaz + facteurs GES (Phase 15). Lus en un coup, indexés par clé.
+  const { data: params } = await supabase
     .from("parametres")
-    .select("valeur")
-    .eq("cle", "facteur_conversion_gaz")
-    .maybeSingle();
+    .select("cle, valeur")
+    .in("cle", ["facteur_conversion_gaz", "facteur_ges_gaz", "facteur_ges_elec"]);
+  const paramParCle = new Map((params ?? []).map((p) => [p.cle, p.valeur as number | null]));
+  const facteurGaz = paramParCle.get("facteur_conversion_gaz") ?? null;
 
-  // Factures confirmées → total gelé dans le snapshot (cohérence du rapport figé).
+  // Factures confirmées → total gelé + tableaux mensuels/tarifs/GES (Phase 15). montant inclus.
   const { data: factures } = await supabase
     .from("factures")
-    .select("id, energie, periode_debut, periode_fin, conso_valeur, conso_unite, confirme")
+    .select("id, energie, periode_debut, periode_fin, conso_valeur, conso_unite, montant, confirme")
     .eq("dossier_id", dossierId)
     .returns<Facture[]>();
-  const facteurGaz = paramGaz?.valeur ?? null;
+
+  // Phase 15 : relevés de degrés-jours (descriptif), gelés dans le snapshot.
+  const { data: degresJours } = await supabase
+    .from("degres_jours")
+    .select("mois, valeur")
+    .eq("dossier_id", dossierId)
+    .order("mois", { ascending: true });
 
   // Phase 7/13 : sections narratives VALIDÉES (dont sommaire + mesures_etudiees, texte libre) +
   // textes fixes du modèle courant. Plus de mesures/ROI calculés (Phase 13).
@@ -1017,6 +1072,13 @@ export async function soumettreDossier(formData: FormData) {
       dossier.optima_confirme && dossier.optima_path
         ? { path: dossier.optima_path, sha256: dossier.optima_sha256 ?? "" }
         : undefined,
+    // Phase 15 : factures (source des tableaux mensuels), facteurs GES, degrés-jours, graphiques collés.
+    factures: factures ?? [],
+    facteurGesGaz: paramParCle.get("facteur_ges_gaz") ?? null,
+    facteurGesElec: paramParCle.get("facteur_ges_elec") ?? null,
+    degresJours: degresJours ?? [],
+    graphiqueDjElecPath: dossier.graphique_dj_elec_path,
+    graphiqueDjGazPath: dossier.graphique_dj_gaz_path,
   });
 
   const update: Record<string, unknown> = {

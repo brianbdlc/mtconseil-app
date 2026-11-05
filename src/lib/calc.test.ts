@@ -5,6 +5,7 @@ import {
   consoAnnuelleKwh,
   toM2,
   intensiteKwhM2,
+  coutParPi2,
   gazEnKwh,
   facteurEffectif,
   normaliserSurcharge,
@@ -44,6 +45,14 @@ test("intensiteKwhM2 : nominal + absence => null", () => {
   assert.equal(intensiteKwhM2(1000, null, "m2"), null);
   assert.equal(intensiteKwhM2(1000, 0, "m2"), null);
   assert.equal(intensiteKwhM2(1000, 100, null), null);
+});
+
+test("coutParPi2 : montant / superficie en pi² ; null si superficie absente/≤0", () => {
+  assert.ok(Math.abs(coutParPi2(1000, 1000, "pi2")! - 1) < 1e-9); // déjà en pi²
+  assert.ok(Math.abs(coutParPi2(1000, 100, "m2")! - 1000 / (100 / 0.09290304)) < 1e-6); // m² → pi²
+  assert.equal(coutParPi2(1000, null, "pi2"), null);
+  assert.equal(coutParPi2(1000, 0, "pi2"), null);
+  assert.equal(coutParPi2(1000, 100, null), null);
 });
 
 test("gazEnKwh : kWh/GJ/m³ + facteur + null + inconnue => throw", () => {

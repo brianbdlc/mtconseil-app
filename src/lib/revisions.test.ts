@@ -44,4 +44,9 @@ test("modèle .docx committé : styles Titre 1 + champ TOC natif présents", () 
   assert.match(document, /<w:pStyle w:val="Heading1"\/>/);
   assert.match(document, /TOC \\o "1-1"/);
   assert.match(document, /\{#revisions\}/); // la boucle du registre est bien dans le modèle
+  // Phase 15 : garde-fou SWAP MODÈLE — les tableaux mensuels + tags image graphiques sont présents.
+  assert.match(document, /\{#factures_mensuel_elec\}/);
+  assert.match(document, /\{#factures_mensuel_gaz\}/);
+  assert.match(document, /\{#degres_jours\}/);
+  assert.match(document, /\{%graphique_dj_elec\}/);
 });
