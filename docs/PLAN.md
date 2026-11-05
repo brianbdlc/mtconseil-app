@@ -231,7 +231,7 @@ L'ingénieur saisit un tableau de zones (nom de zone, superficie) en plus de la 
 
 - [x] Migration **additive** : table `zones` (dossier_id, nom, superficie, unité) avec RLS ; aucune colonne existante touchée.
 - [x] CRUD des zones dans la description du bâtiment, ouvert aux ingénieurs et **journalisé**.
-- [~] La superficie totale (Phase 3) **reste** la source de l'intensité ; les zones n'entrent dans aucun calcul (fait + testé). `$/pi²` **reporté Phase 15** (aucune source de coût en base aujourd'hui — pas de code mort).
+- [x] La superficie totale (Phase 3) **reste** la source de l'intensité ; les zones n'entrent dans aucun calcul (fait + testé). `$/pi²` **livré en Phase 15** (`coutParPi2`, source = montant des factures).
 - [x] Tableau de zones rendu dans le `.docx` (code = source unique).
 - [x] Test à assertions : l'intensité ne change pas selon les zones ; somme/affichage des superficies de zones correct.
 
@@ -376,10 +376,10 @@ La fiche d'équipement reçoit les champs exacts du rapport : ID, description, m
 
 ### Critères d'acceptation
 
-- [ ] Migration **additive** pour les données mensuelles et les degrés-jours.
-- [ ] Tableaux mensuels gaz + électricité, tarifs moyens ($/kWh, $/m³), GES, intensité par pi² — **calculés par le code** (source unique), rendus dans le `.docx`.
-- [ ] Graphiques avec degrés-jours produits **selon la décision de Luis** (voir ci-dessous).
-- [ ] **Décisions Luis** appliquées : (a) **d'où viennent les degrés-jours** (saisie manuelle ? source externe ?) ; (b) **l'app génère-t-elle les graphiques** (images rendues côté serveur et insérées dans le `.docx`) ou non.
+- [x] Migration **additive** pour les données mensuelles et les degrés-jours (`factures.montant`, table `degres_jours`, facteurs GES, colonnes graphiques sur `dossiers` ; appliquée sur DEV, aucune colonne existante touchée).
+- [x] Tableaux mensuels gaz + électricité, tarifs moyens ($/kWh, $/m³), GES, intensité par pi² — **calculés par le code** (`factures.ts`/`calc.ts`, source unique), rendus dans le `.docx` (vérifié bout en bout : DB → snapshot → docx).
+- [x] Graphiques avec degrés-jours produits **selon la décision de Luis** : degrés-jours en **saisie manuelle** (table `degres_jours`), graphiques = **images PNG collées d'Optima** (upload par énergie, insérées via le module image). L'app ne dessine pas les graphiques.
+- [x] **Décisions Luis** appliquées : (a) degrés-jours = **saisie manuelle** ; (b) l'app **ne génère pas** les graphiques (images collées d'Optima). Rendu graphique serveur reste hors périmètre (upgrade path si Luis l'exige).
 
 ## Bloquée par
 

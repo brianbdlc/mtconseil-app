@@ -5,6 +5,9 @@ import {
   totalFacturesKwh,
   verifierFactures,
   normaliserFacture,
+  tarifMoyen,
+  gesFacture,
+  tableauMensuel,
   type Facture,
   type FactureProposee,
 } from "./factures.ts";
@@ -17,6 +20,7 @@ function f(p: Partial<Facture>): Facture {
     periode_fin: p.periode_fin ?? null,
     conso_valeur: p.conso_valeur ?? null,
     conso_unite: p.conso_unite ?? null,
+    montant: p.montant ?? null,
     confirme: p.confirme ?? false,
   };
 }
@@ -78,6 +82,68 @@ test("verifierFactures : périodes contiguës sans doute de continuité", () => 
     f({ id: "2", energie: "elec", periode_debut: "2024-02-01", periode_fin: "2024-03-01", conso_valeur: 1, conso_unite: "kWh" }),
   ]);
   assert.equal(ok.filter((d) => /chevauchement|trou/.test(d.message)).length, 0);
+});
+
+// ───────────────────────── Phase 15 : tarifs, GES, tableaux mensuels ─────────────────────────
+
+const GES = { facteurGesGaz: 1.879, facteurGesElec: 0.0006, facteurM3: 10.33 };
+
+test("tarifMoyen : montant / conso ; null si montant ou conso absent/≤0", () => {
+  assert.equal(tarifMoyen(f({ montant: 120, conso_valeur: 1000 })), 0.12);
+  assert.equal(tarifMoyen(f({ montant: null, conso_valeur: 1000 })), null);
+  assert.equal(tarifMoyen(f({ montant: 120, conso_valeur: 0 })), null);
+  assert.equal(tarifMoyen(f({ montant: 120, conso_valeur: null })), null);
+});
+
+test("gesFacture : élec = kWh × facteurGesElec", () => {
+  assert.ok(Math.abs(gesFacture(f({ energie: "elec", conso_valeur: 1000, conso_unite: "kWh" }), GES)! - 0.6) < 1e-9);
+});
+
+test("gesFacture : gaz m3 = conso × facteurGesGaz (direct, sans facteurM3)", () => {
+  const g = gesFacture(f({ energie: "gaz", conso_valeur: 100, conso_unite: "m3" }), GES)!;
+  assert.ok(Math.abs(g - 187.9) < 1e-9);
+});
+
+test("gesFacture : gaz GJ reconverti en m3 via facteurM3 ; null si facteurM3 absent", () => {
+  // 1 GJ = 277.77… kWh → /10.33 = 26.89… m3 → ×1.879.
+  const m3 = (1000 / 3.6) / 10.33;
+  assert.ok(Math.abs(gesFacture(f({ energie: "gaz", conso_valeur: 1, conso_unite: "GJ" }), GES)! - m3 * 1.879) < 1e-6);
+  assert.equal(gesFacture(f({ energie: "gaz", conso_valeur: 1, conso_unite: "GJ" }), { ...GES, facteurM3: null }), null);
+});
+
+test("gesFacture : null si facteur GES manquant ou donnée incomplète", () => {
+  assert.equal(gesFacture(f({ energie: "elec", conso_valeur: 1000, conso_unite: "kWh" }), { ...GES, facteurGesElec: null }), null);
+  assert.equal(gesFacture(f({ energie: "gaz", conso_valeur: 100, conso_unite: "m3" }), { ...GES, facteurGesGaz: null }), null);
+  assert.equal(gesFacture(f({ energie: null, conso_valeur: 100, conso_unite: "kWh" }), GES), null);
+});
+
+test("tableauMensuel : seulement les confirmées, triées, par énergie, avec totaux", () => {
+  const factures = [
+    f({ id: "e2", energie: "elec", conso_valeur: 1000, conso_unite: "kWh", montant: 120, periode_debut: "2024-02-01", confirme: true }),
+    f({ id: "e1", energie: "elec", conso_valeur: 800, conso_unite: "kWh", montant: 100, periode_debut: "2024-01-01", confirme: true }),
+    f({ id: "e0", energie: "elec", conso_valeur: 500, conso_unite: "kWh", montant: 60, periode_debut: "2023-12-01", confirme: false }), // exclue
+    f({ id: "g1", energie: "gaz", conso_valeur: 100, conso_unite: "m3", montant: 50, periode_debut: "2024-01-01", confirme: true }),
+  ];
+  const t = tableauMensuel(factures, GES);
+
+  assert.equal(t.elec.lignes.length, 2); // non confirmée exclue
+  assert.equal(t.elec.lignes[0].mois, "2024-01-01"); // tri croissant
+  assert.equal(t.elec.lignes[1].mois, "2024-02-01");
+  assert.equal(t.elec.total_conso, 1800);
+  assert.equal(t.elec.total_montant, 220);
+  assert.ok(Math.abs(t.elec.tarif_moyen! - 220 / 1800) < 1e-9);
+  assert.ok(Math.abs(t.elec.total_ges! - 1800 * 0.0006) < 1e-9);
+
+  assert.equal(t.gaz.lignes.length, 1);
+  assert.equal(t.gaz.total_conso, 100);
+  assert.ok(Math.abs(t.gaz.total_ges! - 187.9) < 1e-9);
+});
+
+test("tableauMensuel : aucune confirmée → tableaux vides, totaux null", () => {
+  const t = tableauMensuel([f({ energie: "elec", conso_valeur: 1, conso_unite: "kWh", confirme: false })], GES);
+  assert.equal(t.elec.lignes.length, 0);
+  assert.equal(t.elec.total_conso, null);
+  assert.equal(t.elec.tarif_moyen, null);
 });
 
 test("normaliserFacture : écarte une unité hors liste", () => {

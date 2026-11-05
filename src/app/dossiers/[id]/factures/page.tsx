@@ -9,7 +9,14 @@ import {
   verifierFactures,
   type Facture,
 } from "@/lib/factures";
-import { updateFacture, lireFactureAction, confirmerFacture } from "../../actions";
+import {
+  updateFacture,
+  lireFactureAction,
+  confirmerFacture,
+  updateDegresJours,
+  supprimerDegresJours,
+  enregistrerGraphique,
+} from "../../actions";
 import { Button, Input, Label, Select, StatusChip } from "@/components/ui";
 import { VerrouFiche } from "@/components/verrou-fiche";
 
@@ -24,7 +31,7 @@ type FactureRow = Facture & {
 };
 
 const COLS =
-  "id, energie, fournisseur, periode_debut, periode_fin, conso_valeur, conso_unite, conso_confiance, source, confirme, storage_path, nom_original";
+  "id, energie, fournisseur, periode_debut, periode_fin, conso_valeur, conso_unite, montant, conso_confiance, source, confirme, storage_path, nom_original";
 
 function fmt(n: number | null): string {
   if (n === null) return "—";
@@ -186,6 +193,198 @@ export default function FacturesPage() {
           />
         ))}
       </section>
+
+      <DegresJoursSection dossierId={dossierId} />
+      <GraphiquesSection dossierId={dossierId} />
+    </div>
+  );
+}
+
+// ───────────────────── Degrés-jours (US-55) : saisie manuelle, descriptif ─────────────────────
+type DegresJourRow = { id: string; mois: string | null; valeur: number | null };
+
+function DegresJoursSection({ dossierId }: { dossierId: string }) {
+  const supabase = useMemo(() => createClient(), []);
+  const [rows, setRows] = useState<DegresJourRow[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const recharger = useCallback(async () => {
+    const { data } = await supabase
+      .from("degres_jours")
+      .select("id, mois, valeur")
+      .eq("dossier_id", dossierId)
+      .order("mois", { ascending: true });
+    setRows((data ?? []) as DegresJourRow[]);
+  }, [supabase, dossierId]);
+
+  useEffect(() => {
+    recharger();
+  }, [recharger]);
+
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await fn();
+      await recharger();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function enregistrer(formData: FormData) {
+    formData.set("dossier_id", dossierId);
+    await run(() => updateDegresJours(formData));
+  }
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-[15px] font-semibold text-ink">Degrés-jours</h2>
+        <p className="text-xs text-muted">
+          Saisie manuelle. Un relevé par mois, mis en regard de la consommation dans les graphiques.
+        </p>
+      </div>
+
+      <div className="overflow-x-auto border border-border rounded-lg bg-surface">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-muted border-b border-border">
+              <th className="px-4 py-2 font-medium">Mois</th>
+              <th className="px-4 py-2 font-medium">Degrés-jours</th>
+              <th className="px-4 py-2 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((d) => (
+              <tr key={d.id} className="border-b border-border last:border-0 align-top">
+                <td className="px-4 py-2">
+                  <form id={`dj-${d.id}`} action={enregistrer} className="contents">
+                    <input type="hidden" name="id" value={d.id} />
+                    <Input name="mois" type="date" defaultValue={d.mois ?? ""} form={`dj-${d.id}`} />
+                  </form>
+                </td>
+                <td className="px-4 py-2">
+                  <Input name="valeur" className="tabular-nums" defaultValue={d.valeur ?? ""} form={`dj-${d.id}`} />
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex gap-2">
+                    <Button type="submit" form={`dj-${d.id}`} disabled={busy}>
+                      Enregistrer
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => run(() => supprimerDegresJours(d.id, dossierId))}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={3} className="px-4 py-6 text-center text-muted">
+                  Aucun relevé.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <form action={enregistrer}>
+        <Button type="submit" variant="secondary" disabled={busy}>
+          + Ajouter un relevé
+        </Button>
+      </form>
+    </section>
+  );
+}
+
+// ───────── Graphiques degrés-jours (US-55) : images PNG collées d'Optima (hors calcul) ─────────
+function GraphiquesSection({ dossierId }: { dossierId: string }) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-[15px] font-semibold text-ink">Graphiques degrés-jours</h2>
+        <p className="text-xs text-muted">
+          Image PNG par énergie, collée d&apos;Optima. L&apos;app ne la produit ni ne la recalcule.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <GraphiqueUpload dossierId={dossierId} energie="elec" titre="Électricité" />
+        <GraphiqueUpload dossierId={dossierId} energie="gaz" titre="Gaz naturel" />
+      </div>
+    </section>
+  );
+}
+
+function GraphiqueUpload({
+  dossierId,
+  energie,
+  titre,
+}: {
+  dossierId: string;
+  energie: "elec" | "gaz";
+  titre: string;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+  const colonne = energie === "elec" ? "graphique_dj_elec_path" : "graphique_dj_gaz_path";
+  const [url, setUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const recharger = useCallback(async () => {
+    const { data } = await supabase.from("dossiers").select(colonne).eq("id", dossierId).single();
+    const path = (data as Record<string, string | null> | null)?.[colonne] ?? null;
+    if (path) {
+      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
+      setUrl(signed?.signedUrl ?? null);
+    } else {
+      setUrl(null);
+    }
+  }, [supabase, dossierId, colonne]);
+
+  useEffect(() => {
+    recharger();
+  }, [recharger]);
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setErreur(null);
+    setBusy(true);
+    try {
+      const path = `${dossierId}/graphique_dj_${energie}.png`;
+      const { error: upErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, { contentType: file.type || "image/png", upsert: true });
+      if (upErr) throw upErr;
+      await enregistrerGraphique(dossierId, energie, path);
+      await recharger();
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : "échec du téléversement");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="border border-border rounded-lg bg-surface p-4 space-y-3">
+      <Label htmlFor={`graph-${energie}`}>{titre}</Label>
+      {url && <img src={url} alt={`Graphique ${titre}`} className="max-w-full rounded border border-border" />}
+      <input
+        id={`graph-${energie}`}
+        type="file"
+        accept="image/png,image/*"
+        onChange={onFile}
+        disabled={busy}
+        className="text-sm"
+      />
+      {erreur && <div className="text-sm text-error">{erreur}</div>}
     </div>
   );
 }
@@ -299,6 +498,10 @@ function FactureCard({
         <div>
           <Label htmlFor={`conso-${facture.id}`}>Consommation</Label>
           <Input id={`conso-${facture.id}`} name="conso_valeur" className="tabular-nums" defaultValue={facture.conso_valeur ?? ""} />
+        </div>
+        <div>
+          <Label htmlFor={`montant-${facture.id}`}>Montant ($)</Label>
+          <Input id={`montant-${facture.id}`} name="montant" className="tabular-nums" defaultValue={facture.montant ?? ""} />
         </div>
         <div className="col-span-2 md:col-span-3 flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-ink">

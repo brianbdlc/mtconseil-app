@@ -24,6 +24,10 @@
 // {capacite_refroidissement_kw}, {capacite_chauffage_kw}, {efficacite_pct}, {constat}) + 2 images
 // conditionnelles : {#a_photo_unite}{%photo_unite}{/a_photo_unite} et idem plaque (tag {%…} résolu
 // par docxtemplater-image-module-free à l'export). heures/facteur NE figurent PAS (décision Luis).
+// Phase 15 : section « Factures d'énergie » — tableaux mensuels {#factures_mensuel_elec}/{_gaz}
+// (mois, conso, montant, tarif, ges) + lignes totaux, {tarif_moyen_elec}/{_gaz}, {ges_total},
+// {intensite_reelle}, {cout_pi2}, boucle {#degres_jours} (mois_dj, valeur_dj) et 2 images
+// conditionnelles {#a_graphique_dj_elec}{%graphique_dj_elec}{/…} + idem gaz (collées d'Optima).
 // Aucune autre ligne de code à changer.
 // ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 // ponytail: champ TOC natif, non calculé (profondeur plate \o "1-1") — ceiling = TOC figée si Luis l'exige.
@@ -144,6 +148,36 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${p("{#distribution}")}
     ${p("- {amperes} A / {tension} V")}
     ${p("{/distribution}")}
+    ${p("")}
+    ${h1("Factures d'énergie")}
+    ${p("Électricité (mois | conso | montant | tarif $/unité | GES kgCO₂e)")}
+    ${p("{#factures_mensuel_elec}")}
+    ${p("- {mois} | {conso} | {montant} $ | {tarif} | {ges}")}
+    ${p("{/factures_mensuel_elec}")}
+    ${p("Total élec : {total_conso_elec} · {total_montant_elec} $ · GES {total_ges_elec} · tarif moyen {tarif_moyen_elec} $/unité")}
+    ${p("")}
+    ${p("Gaz naturel (mois | conso | montant | tarif $/unité | GES kgCO₂e)")}
+    ${p("{#factures_mensuel_gaz}")}
+    ${p("- {mois} | {conso} | {montant} $ | {tarif} | {ges}")}
+    ${p("{/factures_mensuel_gaz}")}
+    ${p("Total gaz : {total_conso_gaz} · {total_montant_gaz} $ · GES {total_ges_gaz} · tarif moyen {tarif_moyen_gaz} $/unité")}
+    ${p("")}
+    ${p("GES total (factures) : {ges_total} kgCO₂e")}
+    ${p("Intensité réelle (factures) : {intensite_reelle} kWh/m²")}
+    ${p("Coût par pi² : {cout_pi2} $/pi²")}
+    ${p("")}
+    ${p("Degrés-jours (mois | valeur)")}
+    ${p("{#degres_jours}")}
+    ${p("- {mois_dj} | {valeur_dj}")}
+    ${p("{/degres_jours}")}
+    ${p("{#a_graphique_dj_elec}")}
+    ${p("Graphique degrés-jours — électricité :")}
+    ${p("{%graphique_dj_elec}")}
+    ${p("{/a_graphique_dj_elec}")}
+    ${p("{#a_graphique_dj_gaz}")}
+    ${p("Graphique degrés-jours — gaz :")}
+    ${p("{%graphique_dj_gaz}")}
+    ${p("{/a_graphique_dj_gaz}")}
     ${p("")}
     ${h1("Description des installations")}
     ${p("{description_installations}")}

@@ -6,11 +6,13 @@
 
 import {
   bilanEnergetique,
+  coutParPi2,
   gazEnKwh,
   intensiteKwhM2,
   ligneEquipement,
   type LigneBilan,
 } from "./calc.ts";
+import { tableauMensuel, type Facture } from "./factures.ts";
 import type { Zone } from "./zones.ts";
 import { trierRevisions, type Revision } from "./revisions.ts";
 import type { NarrativeSection } from "./statuts.ts";
@@ -65,6 +67,9 @@ export type ModeleSnapshot = {
   version: number;
 };
 
+// Phase 15 : relevé de degrés-jours (saisie manuelle, descriptif).
+export type DegresJour = { mois: string | null; valeur: number | null };
+
 export function construireSnapshot(
   dossier: DossierSnapshot,
   equipements: EquipementSnapshot[],
@@ -77,6 +82,13 @@ export function construireSnapshot(
     distribution?: DistributionEntree[]; // Phase 10 : descriptif, hors calcul
     revisions?: Revision[]; // Phase 11 : descriptif, hors calcul
     optima?: { path: string; sha256: string }; // Phase 12 : annexe PDF figée telle quelle, hors calcul
+    // Phase 15 : factures (source des tableaux mensuels), facteurs GES, degrés-jours, graphiques collés.
+    factures?: Facture[];
+    facteurGesGaz?: number | null;
+    facteurGesElec?: number | null;
+    degresJours?: DegresJour[];
+    graphiqueDjElecPath?: string | null;
+    graphiqueDjGazPath?: string | null;
   },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
@@ -89,6 +101,30 @@ export function construireSnapshot(
     dossier.superficie_valeur,
     dossier.superficie_unite,
   );
+
+  // Phase 15 : tableaux mensuels + tarifs + GES calculés depuis les factures confirmées (source unique).
+  const facturesMensuel = tableauMensuel(parametres.factures ?? [], {
+    facteurGesGaz: parametres.facteurGesGaz ?? null,
+    facteurGesElec: parametres.facteurGesElec ?? null,
+    facteurM3: parametres.facteurGaz,
+  });
+  const gesTotal =
+    facturesMensuel.elec.total_ges === null && facturesMensuel.gaz.total_ges === null
+      ? null
+      : (facturesMensuel.elec.total_ges ?? 0) + (facturesMensuel.gaz.total_ges ?? 0);
+  const montantTotal =
+    facturesMensuel.elec.total_montant === null && facturesMensuel.gaz.total_montant === null
+      ? null
+      : (facturesMensuel.elec.total_montant ?? 0) + (facturesMensuel.gaz.total_montant ?? 0);
+  const intensiteReelle = intensiteKwhM2(
+    parametres.totalFacturesKwh ?? 0,
+    parametres.totalFacturesKwh === null ? null : dossier.superficie_valeur,
+    dossier.superficie_unite,
+  );
+  const coutPi2 =
+    montantTotal === null
+      ? null
+      : coutParPi2(montantTotal, dossier.superficie_valeur, dossier.superficie_unite);
 
   return {
     dossier: {
@@ -106,6 +142,17 @@ export function construireSnapshot(
     intensite,
     gazKwh,
     totalFacturesKwh: parametres.totalFacturesKwh, // gelé pour la cohérence du rapport figé (Phase 6)
+    // Phase 15 : tableaux mensuels (calculés), tarifs moyens, GES total, intensité réelle (factures),
+    // $/pi², degrés-jours, chemins des graphiques collés d'Optima. Tout figé au snapshot.
+    factures_mensuel: facturesMensuel,
+    tarif_moyen_elec: facturesMensuel.elec.tarif_moyen,
+    tarif_moyen_gaz: facturesMensuel.gaz.tarif_moyen,
+    ges_total: gesTotal,
+    intensite_reelle: intensiteReelle,
+    cout_pi2: coutPi2,
+    degres_jours: (parametres.degresJours ?? []).map((d) => ({ mois: d.mois, valeur: d.valeur })),
+    graphique_dj_elec_path: parametres.graphiqueDjElecPath ?? null,
+    graphique_dj_gaz_path: parametres.graphiqueDjGazPath ?? null,
     equipements: equipements.map((e) => ({
       nom: e.nom,
       puissance_valeur: e.puissance_valeur,

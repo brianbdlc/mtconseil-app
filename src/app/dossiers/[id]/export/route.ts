@@ -44,6 +44,13 @@ async function rendreDocx(snapshot: Snapshot, statut: string, supabase: DbClient
     if (blob) images.set(p, Buffer.from(await blob.arrayBuffer()));
   }
 
+  // Phase 15 : graphiques degrés-jours collés d'Optima, stockés dans le bucket 'factures'.
+  for (const p of [snapshot.graphique_dj_elec_path, snapshot.graphique_dj_gaz_path]) {
+    if (!p) continue;
+    const { data: blob } = await supabase.storage.from("factures").download(p);
+    if (blob) images.set(p, Buffer.from(await blob.arrayBuffer()));
+  }
+
   const imageModule = new ImageModule({
     centered: false,
     getImage: (tagValue) => images.get(tagValue) ?? FALLBACK_PNG,
