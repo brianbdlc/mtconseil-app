@@ -330,12 +330,14 @@ Les emplacements s'appuient sur la table `rapport_textes` (Phase 7). **Gel** inc
 
 ### Critères d'acceptation
 
-- [ ] 5 emplacements de texte libre à positions fixes (sommaire, humidification/contrôles, électricité, mesures étudiées, conclusion), rendus à leur place dans le `.docx` ; vides par défaut.
-- [ ] `sommaireExecutif` (assembleur) **retiré** ; l'assembleur ne produit plus de sommaire ; conséquences propagées à `rapport.ts` et à l'export.
-- [ ] Calcul ROI/PRI **retiré** (`mesures.ts`/`rapport.ts`/export) ; aucun chiffre de mesure calculé ni inventé ; `mesures.test.ts` retiré ou réécrit.
-- [ ] **Rétrocompatibilité des snapshots** : un rapport **soumis avant la Phase 13** (snapshot JSON contenant `sommaire`, `mesures[]`, `retour_annees`) **s'exporte toujours à l'identique de ce qui avait été envoyé** — le rendu lit les anciens champs du snapshot s'ils sont présents, les nouveaux emplacements sinon. Test à assertions sur un ancien snapshot figé.
-- [ ] **Mesures déjà saisies** dans l'ancien formulaire structuré : **option par défaut retenue = copie one-shot** du tableau structuré vers le texte libre pré-rempli (migration de données additive ; l'ingénieur ajuste ensuite). *Alternative écartée : laisser l'ancien tableau en lecture seule à côté — rejetée pour ne pas garder deux sources.*
-- [ ] `src/lib/redaction.ts` laissé **gâté OFF** (US-41/42 reportées) — aucun code neuf dessus.
+- [x] 5 emplacements de texte libre à positions fixes (sommaire, humidification/contrôles, électricité, mesures étudiées, conclusion), rendus à leur place dans le `.docx` ; vides par défaut.
+- [x] `sommaireExecutif` (assembleur) **retiré** ; l'assembleur ne produit plus de sommaire ; conséquences propagées à `rapport.ts` et à l'export.
+- [x] Calcul ROI/PRI **retiré** (`mesures.ts`/`rapport.ts`/export) ; aucun chiffre de mesure calculé ni inventé ; `mesures.test.ts` retiré ou réécrit.
+- [x] **Rétrocompatibilité des snapshots** : un rapport **soumis avant la Phase 13** (snapshot JSON contenant `sommaire`, `mesures[]`, `retour_annees`) **s'exporte toujours à l'identique de ce qui avait été envoyé** — le rendu lit les anciens champs du snapshot s'ils sont présents, les nouveaux emplacements sinon. Test à assertions sur un ancien snapshot figé.
+- [x] **Mesures déjà saisies** dans l'ancien formulaire structuré : **option par défaut retenue = copie one-shot** du tableau structuré vers le texte libre pré-rempli (migration de données additive ; l'ingénieur ajuste ensuite). *Alternative écartée : laisser l'ancien tableau en lecture seule à côté — rejetée pour ne pas garder deux sources.*
+- [x] `src/lib/redaction.ts` laissé **gâté OFF** (US-41/42 reportées) — aucun code neuf dessus.
+
+> **Vérifié de bout en bout (2026-11-04)** : migration `phase13_textes_libres` appliquée sur DEV ; CHECK `rapport_textes_section_check` ré-énumère les 10 clés (4 nouvelles + `mesures_mise_en_forme` conservée) ; copie one-shot idempotente des mesures → `mesures_etudiees` (1 ligne copiée sur DEV, `on conflict do nothing`). `get_advisors` : aucune **nouvelle** alerte RLS. `donneesRender` extrait en lib pure (`src/lib/rapport-render.ts`, testable hors route server-only). **Pipeline snapshot→docx exercé** (14 assertions sur le `document.xml` rendu) : nouveau snapshot → les 5 emplacements libres rendus à leur place, boucle `{#mesures}` vide, aucun placeholder orphelin ; snapshot vide → sections présentes mais vides ; **ancien snapshot pré-Phase 13** → sommaire calculé + ligne mesure/ROI « 3,25 ans » rendus à l'identique. `npm test` (62 ✓, dont le test rétrocompat `rapport-render.test.ts`) + `npm run build` OK. *Non exercé en direct* : le rendu des formulaires dans le navigateur (login requis) — la saisie réutilise `SectionNarrative` (Phase 7, livré).
 
 ## Bloquée par
 

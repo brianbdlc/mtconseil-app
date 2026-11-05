@@ -14,13 +14,11 @@ import { SECTIONS, NARRATIVE_SECTIONS, type NarrativeSection } from "@/lib/statu
 import { numFr } from "@/lib/num";
 import { lirePlaque, type ImageEntree } from "@/lib/plaque";
 import { lireFacture, totalFacturesKwh, type Facture } from "@/lib/factures";
-import { retourAnnees, type Mesure } from "@/lib/mesures";
 import { type Zone } from "@/lib/zones";
 import { type Revision } from "@/lib/revisions";
 import {
   extraireFichesValidees,
   redigerDescriptionInstallations,
-  mettreEnFormeMesures,
 } from "@/lib/redaction";
 import { envoyerCourriel, lienDossier } from "@/lib/courriel";
 import { DUREE_VERROU_MS, etatVerrou, type EtatVerrou } from "@/lib/verrou";
@@ -423,38 +421,6 @@ export async function confirmerFacture(factureId: string, dossierId: string) {
   revalidatePath(`/dossiers/${dossierId}/factures`);
 }
 
-// ───────────────────────── Mesures / ROI (Phase 7, US-33/40) ─────────────────────────
-// Saisie INGÉNIEUR (aucune IA). Le CODE calcule le retour (src/lib/mesures.ts) ; rien n'est stocké.
-
-/** Création / édition d'une mesure (create si id vide). */
-export async function updateMesure(formData: FormData) {
-  await exige("modifier");
-  const id = strOrNull(formData.get("id"));
-  const dossierId = String(formData.get("dossier_id"));
-  const row = {
-    nom: strOrNull(formData.get("nom")),
-    economies_annuelles: numFr(formData.get("economies_annuelles")),
-    cout_investissement: numFr(formData.get("cout_investissement")),
-    subvention: numFr(formData.get("subvention")) ?? 0,
-  };
-
-  const supabase = await createClient();
-  const { error } = id
-    ? await supabase.from("mesures").update(row).eq("id", id)
-    : await supabase.from("mesures").insert({ ...row, dossier_id: dossierId });
-  if (error) throw new Error(error.message);
-
-  revalidatePath(`/dossiers/${dossierId}/mesures`);
-}
-
-export async function supprimerMesure(mesureId: string, dossierId: string) {
-  await exige("modifier");
-  const supabase = await createClient();
-  const { error } = await supabase.from("mesures").delete().eq("id", mesureId);
-  if (error) throw new Error(error.message);
-  revalidatePath(`/dossiers/${dossierId}/mesures`);
-}
-
 // ───────────────────────── Zones du bâtiment (Phase 9, US-53) ─────────────────────────
 // Saisie INGÉNIEUR, purement DESCRIPTIVE : les zones n'entrent dans AUCUN calcul (l'intensité
 // reste basée sur la superficie TOTALE, Phase 3). CRUD inline dans la page dossier.
@@ -637,26 +603,15 @@ export async function redigerSection(dossierId: string, section: NarrativeSectio
   if (!meta || meta.source !== "ia") throw new Error(`Section non rédigeable par l'IA : ${section}`);
 
   const supabase = await createClient();
-  let texte: string;
 
-  if (section === "description_installations") {
-    const { data: eqs } = await supabase
-      .from("equipements")
-      .select(
-        "nom, marque, marque_validated, modele, modele_validated, puissance_valeur, puissance_unite, puissance_validated, annee, annee_validated, etat, emplacement, dessert",
-      )
-      .eq("dossier_id", dossierId);
-    texte = await redigerDescriptionInstallations(extraireFichesValidees(eqs ?? []));
-  } else {
-    const { data: mesures } = await supabase
-      .from("mesures")
-      .select("nom, economies_annuelles, cout_investissement, subvention")
-      .eq("dossier_id", dossierId)
-      .order("ordre", { ascending: true })
-      .returns<Mesure[]>();
-    const enrichies = (mesures ?? []).map((m) => ({ ...m, retour_annees: retourAnnees(m) }));
-    texte = await mettreEnFormeMesures(enrichies, null);
-  }
+  // Phase 13 : seule `description_installations` est rédigée par l'IA (mesures_mise_en_forme retirée).
+  const { data: eqs } = await supabase
+    .from("equipements")
+    .select(
+      "nom, marque, marque_validated, modele, modele_validated, puissance_valeur, puissance_unite, puissance_validated, annee, annee_validated, etat, emplacement, dessert",
+    )
+    .eq("dossier_id", dossierId);
+  const texte = await redigerDescriptionInstallations(extraireFichesValidees(eqs ?? []));
 
   const { error } = await supabase
     .from("rapport_textes")
@@ -887,14 +842,8 @@ export async function soumettreDossier(formData: FormData) {
     .returns<Facture[]>();
   const facteurGaz = paramGaz?.valeur ?? null;
 
-  // Phase 7 : mesures (ROI code), sections narratives VALIDÉES, textes fixes du modèle courant.
-  const { data: mesures } = await supabase
-    .from("mesures")
-    .select("nom, economies_annuelles, cout_investissement, subvention")
-    .eq("dossier_id", dossierId)
-    .order("ordre", { ascending: true })
-    .returns<Mesure[]>();
-
+  // Phase 7/13 : sections narratives VALIDÉES (dont sommaire + mesures_etudiees, texte libre) +
+  // textes fixes du modèle courant. Plus de mesures/ROI calculés (Phase 13).
   const { data: textesRows } = await supabase
     .from("rapport_textes")
     .select("section, texte")
@@ -949,7 +898,6 @@ export async function soumettreDossier(formData: FormData) {
   const snapshot = construireSnapshot(dossier, eqs, {
     facteurGaz,
     totalFacturesKwh: totalFacturesKwh(factures ?? [], facteurGaz),
-    mesures: mesures ?? [],
     textes,
     modele,
     zones: zones ?? [],

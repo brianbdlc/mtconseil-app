@@ -11,8 +11,6 @@ import {
 } from "../../actions";
 import {
   bilanEnergetique,
-  gazEnKwh,
-  intensiteKwhM2,
   libellePoste,
   ligneEquipement,
   type LigneBilan,
@@ -20,7 +18,6 @@ import {
 import {
   controleCoherence,
   controleCompletude,
-  sommaireExecutif,
   type EquipementAssembleur,
 } from "@/lib/assembleur";
 import { SECTIONS, NARRATIVE_SECTIONS, type NarrativeSection } from "@/lib/statuts";
@@ -42,29 +39,15 @@ const SECTION_LABELS: Record<(typeof SECTIONS)[number], string> = {
   description: "Description du bâtiment",
 };
 
-// Tableaux bilan + sommaire, partagés entre l'affichage « en direct » et « gelé ».
-function BilanEtSommaire({
-  sommaire,
+// Table du bilan par poste, partagée entre l'affichage « en direct » et « gelé ».
+// Phase 13 : le sommaire exécutif n'est plus calculé (devenu emplacement libre) — plus de prose ici.
+function BilanTable({
   bilan,
 }: {
-  sommaire: { texte: string; lignesResume: { label: string; valeur: string }[] };
   bilan: { parPoste: { poste: string; kwh: number; pct: number }[]; totalEquipementsKwh: number };
 }) {
   return (
     <div className="border border-border rounded-lg bg-surface p-4 space-y-4">
-      <p className="text-sm text-ink leading-relaxed">{sommaire.texte}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <tbody>
-            {sommaire.lignesResume.map((l) => (
-              <tr key={l.label} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 text-muted">{l.label}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink">{l.valeur}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -198,8 +181,8 @@ async function FrozenReport({
       </div>
 
       <section>
-        <h2 className="text-[15px] font-semibold text-ink mb-3">Sommaire exécutif (gelé)</h2>
-        <BilanEtSommaire sommaire={snapshot.sommaire} bilan={snapshot.bilan} />
+        <h2 className="text-[15px] font-semibold text-ink mb-3">Bilan énergétique (gelé)</h2>
+        <BilanTable bilan={snapshot.bilan} />
       </section>
 
       <section>
@@ -431,11 +414,6 @@ async function LiveReport({
 
   const eqs = equipements ?? [];
   const bilan = bilanEnergetique(eqs.map((e) => ligneEquipement(e)) as LigneBilan[]);
-  const gazKwh =
-    dossier.gaz_quantite !== null && dossier.gaz_unite
-      ? gazEnKwh({ quantite: dossier.gaz_quantite, unite: dossier.gaz_unite, facteurM3: facteurGaz })
-      : null;
-  const intensite = intensiteKwhM2(bilan.totalEquipementsKwh, dossier.superficie_valeur, dossier.superficie_unite);
 
   const completude = controleCompletude(eqs, dossier);
   const coherence = controleCoherence(
@@ -443,7 +421,6 @@ async function LiveReport({
     totalFacturesKwh(factures ?? [], facteurGaz),
     seuilCoherence,
   );
-  const sommaire = sommaireExecutif({ dossier, bilan, intensite, gazKwh });
 
   // Sections narratives (Phase 7) : textes existants indexés par section.
   const { data: textesRows } = await supabase
@@ -540,20 +517,15 @@ async function LiveReport({
         </div>
       </section>
 
-      {/* Sommaire exécutif + bilan */}
+      {/* Bilan énergétique */}
       <section>
-        <h2 className="text-[15px] font-semibold text-ink mb-3">Sommaire exécutif</h2>
-        <BilanEtSommaire sommaire={sommaire} bilan={bilan} />
+        <h2 className="text-[15px] font-semibold text-ink mb-3">Bilan énergétique</h2>
+        <BilanTable bilan={bilan} />
       </section>
 
-      {/* Sections narratives (Phase 7, US-41/42/43) */}
+      {/* Sections narratives (Phase 7/13, US-41/42/43) */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-ink">Sections narratives</h2>
-          <Link href={`/dossiers/${id}/mesures`} className="text-sm text-primary underline">
-            Mesures d'amélioration →
-          </Link>
-        </div>
+        <h2 className="text-[15px] font-semibold text-ink">Sections narratives</h2>
         <p className="text-sm text-muted">
           L'IA propose un brouillon pour les sections marquées « IA » à partir des seuls éléments
           validés ; vous relisez, corrigez et validez. Seules les sections validées entrent dans le

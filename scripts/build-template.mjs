@@ -16,6 +16,9 @@
 // Phase 11 ajoute la boucle {#revisions}…{/revisions} (numero_rev, date_rev, description_rev)
 // + des styles Titre 1 (Heading1) sur les labels de sections + un champ TOC natif Word
 // (w:fldChar « TOC \o "1-1" \h \z \u ») que Word régénère via F9. Hors calcul.
+// Phase 13 : {sommaire_texte} est désormais un EMPLACEMENT LIBRE (plus calculé) ; ajoute les
+// emplacements libres {humidification_controles}, {electricite} et {mesures_etudiees}. La boucle
+// {#mesures}…{/mesures} est CONSERVÉE (rétrocompat des anciens snapshots : vide sinon).
 // Aucune autre ligne de code à changer.
 // ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 // ponytail: champ TOC natif, non calculé (profondeur plate \o "1-1") — ceiling = TOC figée si Luis l'exige.
@@ -124,7 +127,14 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${h1("Description des installations")}
     ${p("{description_installations}")}
     ${p("")}
-    ${h1("Mesures d'amélioration")}
+    ${h1("Humidification et contrôles")}
+    ${p("{humidification_controles}")}
+    ${p("")}
+    ${h1("Électricité")}
+    ${p("{electricite}")}
+    ${p("")}
+    ${h1("Mesures étudiées")}
+    ${p("{mesures_etudiees}")}
     ${p("{#mesures}")}
     ${p("- {nom} : économies {economies_annuelles} $/an, investissement {cout_investissement} $, subvention {subvention} $ → retour {retour_annees} ans")}
     ${p("{/mesures}")}
