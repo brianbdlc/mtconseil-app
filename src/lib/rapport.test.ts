@@ -74,6 +74,18 @@ test("Phase 10 : la distribution électrique est descriptive — figée telle qu
   ]);
 });
 
+test("Phase 12 : l'annexe Optima est figée telle quelle — hors calcul, intensité inchangée", () => {
+  const sans = construireSnapshot(dossier, [eq(0.5)], extra);
+  const avec = construireSnapshot(dossier, [eq(0.5)], {
+    ...extra,
+    optima: { path: "d1/optima.pdf", sha256: "abc123" },
+  });
+  assert.equal(avec.intensite, sans.intensite);
+  assert.equal(avec.bilan.totalEquipementsKwh, sans.bilan.totalEquipementsKwh);
+  assert.deepEqual(avec.optima, { path: "d1/optima.pdf", sha256: "abc123" });
+  assert.equal(sans.optima, null); // rétrocompat : absent => null
+});
+
 test("un changement ultérieur d'un équipement ne modifie pas le snapshot sérialisé (gel)", () => {
   const equipements = [eq(0.5)];
   const fige = JSON.stringify(construireSnapshot(dossier, equipements, extra));

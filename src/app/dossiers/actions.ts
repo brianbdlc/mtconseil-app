@@ -423,6 +423,37 @@ export async function confirmerFacture(factureId: string, dossierId: string) {
   revalidatePath(`/dossiers/${dossierId}/factures`);
 }
 
+// ───────────────────────── Annexe Optima (Phase 12, US-50/US-51) ─────────────────────────
+// L'ingénieur TÉLÉVERSE le PDF Optima (upload Storage côté navigateur, miroir factures) et le
+// CONFIRME comme les autres parties. AUCUN appel IA, AUCUNE extraction, AUCUN recalcul : le PDF
+// est fusionné tel quel en annexe du rapport final (Option B). Un seul PDF par dossier.
+
+/** Pose le chemin + sha256 du PDF Optima et dé-confirme (re-upload = nouvelle pièce à revoir). */
+export async function enregistrerOptima(dossierId: string, path: string, sha256: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("dossiers")
+    .update({ optima_path: path, optima_sha256: sha256, optima_confirme: false })
+    .eq("id", dossierId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}`);
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+}
+
+/** Confirme le rapport Optima (US-50). Aucune lecture, aucune extraction, aucun recalcul. */
+export async function confirmerOptima(dossierId: string) {
+  await exige("modifier");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("dossiers")
+    .update({ optima_confirme: true })
+    .eq("id", dossierId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/dossiers/${dossierId}`);
+  revalidatePath(`/dossiers/${dossierId}/rapport`);
+}
+
 // ───────────────────────── Mesures / ROI (Phase 7, US-33/40) ─────────────────────────
 // Saisie INGÉNIEUR (aucune IA). Le CODE calcule le retour (src/lib/mesures.ts) ; rien n'est stocké.
 
@@ -858,7 +889,7 @@ export async function soumettreDossier(formData: FormData) {
   const { data: dossier, error: eDossier } = await supabase
     .from("dossiers")
     .select(
-      "client, adresse, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite, gaz_periode",
+      "client, adresse, superficie_valeur, superficie_unite, annee_construction, usage, gaz_quantite, gaz_unite, gaz_periode, optima_path, optima_sha256, optima_confirme",
     )
     .eq("id", dossierId)
     .single();
@@ -955,6 +986,11 @@ export async function soumettreDossier(formData: FormData) {
     zones: zones ?? [],
     distribution: distribution ?? [],
     revisions: revisions ?? [],
+    // Phase 12 : annexe Optima figée telle quelle (seulement si confirmée + présente).
+    optima:
+      dossier.optima_confirme && dossier.optima_path
+        ? { path: dossier.optima_path, sha256: dossier.optima_sha256 ?? "" }
+        : undefined,
   });
 
   const update: Record<string, unknown> = {
@@ -1170,7 +1206,7 @@ export async function supprimerDossier(formData: FormData) {
   const { data: estAdmin } = await supabase.rpc("is_admin");
   if (!estAdmin) throw new Error("Suppression réservée aux administrateurs.");
 
-  for (const bucket of ["photos", "factures", "rapports"] as const) {
+  for (const bucket of ["photos", "factures", "rapports", "optima"] as const) {
     const { data: fichiers } = await supabase.storage.from(bucket).list(dossierId);
     const chemins = (fichiers ?? []).map((f) => `${dossierId}/${f.name}`);
     if (chemins.length) await supabase.storage.from(bucket).remove(chemins);
