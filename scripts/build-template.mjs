@@ -19,6 +19,11 @@
 // Phase 13 : {sommaire_texte} est désormais un EMPLACEMENT LIBRE (plus calculé) ; ajoute les
 // emplacements libres {humidification_controles}, {electricite} et {mesures_etudiees}. La boucle
 // {#mesures}…{/mesures} est CONSERVÉE (rétrocompat des anciens snapshots : vide sinon).
+// Phase 14 : la boucle {#equipements} devient une FICHE Andalos ({identifiant}, {description},
+// {debit_pcm}, {air_frais_pct}, {ventilateur}, {refroidissement}, {chauffage}, {humidificateur},
+// {capacite_refroidissement_kw}, {capacite_chauffage_kw}, {efficacite_pct}, {constat}) + 2 images
+// conditionnelles : {#a_photo_unite}{%photo_unite}{/a_photo_unite} et idem plaque (tag {%…} résolu
+// par docxtemplater-image-module-free à l'export). heures/facteur NE figurent PAS (décision Luis).
 // Aucune autre ligne de code à changer.
 // ponytail: liste à puces du bilan provisoire — la vraie table Word viendra avec le modèle de Luis.
 // ponytail: champ TOC natif, non calculé (profondeur plate \o "1-1") — ceiling = TOC figée si Luis l'exige.
@@ -107,7 +112,23 @@ const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     ${p("")}
     ${h1("Équipements")}
     ${p("{#equipements}")}
-    ${p("- {nom} : {puissance_valeur} {puissance_unite} → {conso_kwh_an} kWh/an")}
+    ${p("{identifiant} — {nom}")}
+    ${p("Description : {description}")}
+    ${p("Puissance : {puissance_valeur} {puissance_unite} → {conso_kwh_an} kWh/an")}
+    ${p("Débit : {debit_pcm} PCM · Air frais : {air_frais_pct} %")}
+    ${p("Ventilateur : {ventilateur} · Refroidissement : {refroidissement}")}
+    ${p("Chauffage : {chauffage} · Humidificateur : {humidificateur}")}
+    ${p("Capacité refroid. : {capacite_refroidissement_kw} kW · Capacité chauff. : {capacite_chauffage_kw} kW · Efficacité : {efficacite_pct} %")}
+    ${p("Constat : {constat}")}
+    ${p("{#a_photo_unite}")}
+    ${p("Photo de l'unité :")}
+    ${p("{%photo_unite}")}
+    ${p("{/a_photo_unite}")}
+    ${p("{#a_photo_plaque}")}
+    ${p("Fiche signalétique :")}
+    ${p("{%photo_plaque}")}
+    ${p("{/a_photo_plaque}")}
+    ${p("")}
     ${p("{/equipements}")}
     ${p("")}
     ${h1("Zones du bâtiment")}

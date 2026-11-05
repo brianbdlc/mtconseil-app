@@ -355,10 +355,10 @@ La fiche d'équipement reçoit les champs exacts du rapport : ID, description, m
 
 ### Critères d'acceptation
 
-- [ ] Migration **additive** : nouvelles colonnes sur `equipements` ; **jamais** de renommage/suppression des colonnes existantes (`puissance_*`, `heures`, `facteur`…).
-- [ ] Chaque nouveau champ peut rester **N/D** ; validation champ par champ conservée (Phase 2).
-- [ ] Fiche rendue dans le `.docx` exactement comme dans le rapport.
-- [ ] **Décision Luis** appliquée : les champs **heures de fonctionnement** et **facteur de charge** restent-ils sur la fiche (contrôle interne) ou disparaissent ? Le calcul de consommation (US-26, puissance × heures × facteur) en **dépend** — rien n'est retiré avant la réponse.
+- [x] Migration **additive** : nouvelles colonnes sur `equipements` ; **jamais** de renommage/suppression des colonnes existantes (`puissance_*`, `heures`, `facteur`…).
+- [x] Chaque nouveau champ peut rester **N/D** ; validation champ par champ conservée (Phase 2).
+- [x] Fiche rendue dans le `.docx` exactement comme dans le rapport.
+- [x] **Décision Luis** appliquée : **heures de fonctionnement** et **facteur de charge** CONSERVÉS sur la fiche (contrôle interne, calcul US-26 intact) mais **retirés du rapport** `.docx`.
 
 ## Bloquée par
 

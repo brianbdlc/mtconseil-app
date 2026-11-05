@@ -3,9 +3,17 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import ImageModule from "docxtemplater-image-module-free";
 import { createClient } from "@/lib/supabase/server";
 import type { Snapshot } from "@/lib/rapport";
 import { donneesRender } from "@/lib/rapport-render";
+
+// Phase 14 : PNG 1×1 transparent, repli si une photo désignée a disparu du Storage (évite de faire
+// échouer tout l'export pour une image manquante — la section conditionnelle reste alignée).
+const FALLBACK_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 // ponytail: export SYNCHRONE + dépôt Storage + versionnage (Phase 5, US-48). Rendu DEPUIS le
 // snapshot gelé, jamais du calcul vivant. SWAP MODÈLE (Phase 7) → remplacer
@@ -19,15 +27,35 @@ import { donneesRender } from "@/lib/rapport-render";
 
 const PDF_MIME = "application/pdf";
 
-function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
+// Phase 14 : rendu async — pré-télécharge les photos désignées (unité/plaque) du Storage, puis les
+// embarque via le module image (getImage SYNCHRONE lisant une Map path→bytes). Loi 25 : les octets
+// restent au Canada (Storage → Gotenberg ca-central), aucun envoi Anthropic.
+async function rendreDocx(snapshot: Snapshot, statut: string, supabase: DbClient): Promise<Buffer> {
+  const paths = new Set<string>();
+  for (const e of snapshot.equipements ?? []) {
+    if (e.photo_unite_path) paths.add(e.photo_unite_path);
+    if (e.photo_plaque_path) paths.add(e.photo_plaque_path);
+  }
+  const images = new Map<string, Buffer>();
+  for (const p of paths) {
+    const { data: blob } = await supabase.storage.from("photos").download(p);
+    if (blob) images.set(p, Buffer.from(await blob.arrayBuffer()));
+  }
+
+  const imageModule = new ImageModule({
+    centered: false,
+    getImage: (tagValue) => images.get(tagValue) ?? FALLBACK_PNG,
+    getSize: () => [180, 180],
+  });
+
   const templatePath = path.join(process.cwd(), "src/templates/rapport-provisoire.docx");
   const zip = new PizZip(readFileSync(templatePath, "binary"));
-  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  const doc = new Docxtemplater(zip, { modules: [imageModule], paragraphLoop: true, linebreaks: true });
   doc.render(donneesRender(snapshot, statut));
   return doc.getZip().generate({ type: "nodebuffer" });
 }
-
-type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * Rendu du livrable PDF (Option B) : docx gelé → PDF via Gotenberg, puis fusion de l'annexe Optima
@@ -37,7 +65,7 @@ async function rendrePdf(snapshot: Snapshot, statut: string, supabase: DbClient)
   const base = process.env.GOTENBERG_URL;
   if (!base) throw Object.assign(new Error("GOTENBERG_URL absent"), { gotenberg: "config" as const });
 
-  const bufDocx = rendreDocx(snapshot, statut);
+  const bufDocx = await rendreDocx(snapshot, statut, supabase);
 
   // 1. Conversion docx → PDF (LibreOffice).
   const convForm = new FormData();

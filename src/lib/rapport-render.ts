@@ -32,6 +32,25 @@ export function donneesRender(snapshot: Snapshot, statut: string) {
       puissance_valeur: e.puissance_valeur ?? "",
       puissance_unite: e.puissance_unite ?? "",
       conso_kwh_an: fmt(e.conso),
+      // Phase 14 : champs fiche Andalos. `?? ""` / fmt → rétrocompat (ancien snapshot = vides, zéro orphelin).
+      identifiant: e.identifiant ?? "",
+      description: e.description ?? "",
+      debit_pcm: fmt(e.debit_pcm),
+      air_frais_pct: fmt(e.air_frais_pct),
+      ventilateur: e.ventilateur ?? "",
+      refroidissement: e.refroidissement ?? "",
+      chauffage: e.chauffage ?? "",
+      humidificateur: e.humidificateur ?? "",
+      capacite_refroidissement_kw: fmt(e.capacite_refroidissement_kw),
+      capacite_chauffage_kw: fmt(e.capacite_chauffage_kw),
+      efficacite_pct: fmt(e.efficacite_pct),
+      constat: e.constat ?? "",
+      // Tags image : la valeur EST le chemin Storage (résolu par le module image à l'export) ;
+      // booléen pour la section conditionnelle. Chemin absent → section absente, aucune image.
+      photo_unite: e.photo_unite_path ?? "",
+      photo_plaque: e.photo_plaque_path ?? "",
+      a_photo_unite: !!e.photo_unite_path,
+      a_photo_plaque: !!e.photo_plaque_path,
     })),
     // Phase 13 : boucle mesures/ROI conservée pour les ANCIENS snapshots seulement (`?? []` → boucle
     // vide pour les nouveaux). Les nouveaux rapports utilisent l'emplacement libre `mesures_etudiees`.
