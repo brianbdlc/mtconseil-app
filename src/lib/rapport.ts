@@ -15,6 +15,9 @@ import { retourAnnees, investissementNet, type Mesure } from "./mesures.ts";
 import type { Zone } from "./zones.ts";
 import type { NarrativeSection } from "./statuts.ts";
 
+// Phase 10 : distribution électrique — descriptif, AUCUNE logique (pas de fichier lib dédié).
+export type DistributionEntree = { amperes: number | null; tension: number | null };
+
 type TypeJoint = { poste: string; confirme: boolean; facteur_charge: number | null } | null;
 
 export type EquipementSnapshot = {
@@ -56,6 +59,7 @@ export function construireSnapshot(
     textes: Partial<Record<NarrativeSection, string>>; // seulement les sections valide=true
     modele: ModeleSnapshot;
     zones?: Zone[]; // Phase 9 : descriptif, hors calcul
+    distribution?: DistributionEntree[]; // Phase 10 : descriptif, hors calcul
   },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
@@ -112,6 +116,11 @@ export function construireSnapshot(
       nom: z.nom,
       superficie: z.superficie,
       unite: z.unite,
+    })),
+    // Phase 10 : distribution électrique DESCRIPTIVE figée (hors calcul — saisie ingénieur pure).
+    distribution: (parametres.distribution ?? []).map((d) => ({
+      amperes: d.amperes,
+      tension: d.tension,
     })),
     modele: {
       methodologie: parametres.modele.methodologie,

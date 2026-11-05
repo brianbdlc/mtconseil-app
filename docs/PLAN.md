@@ -251,10 +251,12 @@ L'ingénieur documente l'alimentation du bâtiment : nombre d'entrées électriq
 
 ### Critères d'acceptation
 
-- [ ] Migration **additive** : table `distribution_electrique` (dossier_id, ampères, tension) + compteur d'entrées dérivé des lignes ; RLS.
-- [ ] CRUD (une ou plusieurs entrées) dans la description du bâtiment, **journalisé**.
-- [ ] Rendu dans le `.docx` (tableau distribution électrique).
-- [ ] Aucune valeur calculée ni devinée : saisie ingénieur pure.
+- [x] Migration **additive** : table `distribution_electrique` (dossier_id, ampères, tension) + compteur d'entrées dérivé des lignes ; RLS.
+- [x] CRUD (une ou plusieurs entrées) dans la description du bâtiment, **journalisé**.
+- [x] Rendu dans le `.docx` (tableau distribution électrique).
+- [x] Aucune valeur calculée ni devinée : saisie ingénieur pure.
+
+> **Vérifié de bout en bout (2026-11-04)** : migration appliquée sur DEV (`distribution_electrique` RLS active, triggers journal), `get_advisors` sans nouvelle alerte RLS ; `npm test` (62 ✓, dont test passthrough `rapport.test.ts`) + `npm run build` OK. **CRUD + journal exercés sur le vrai DEV** sous rôle `authenticated` (JWT de l'ingénieur) : INSERT/UPDATE/DELETE passent la RLS, `audit_log` enregistre les 3 actions avec `actor` correct et old/new tension (347 → 600 → supprimé), le tout en transaction annulée (DEV propre). **Pipeline snapshot→docx exercé** : `construireSnapshot` fige `distribution` tel quel (hors calcul, intensité inchangée) et le render docxtemplater produit la boucle `{#distribution}` + « Nombre d'entrées : 2 » sans placeholder orphelin. *Non exercé en direct* : le rendu des champs de formulaire dans le navigateur (login requis) — clone ligne-à-ligne du formulaire zones livré en Phase 9.
 
 ## Bloquée par
 

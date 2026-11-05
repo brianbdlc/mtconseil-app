@@ -64,6 +64,13 @@ function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
       unite_zone: z.unite === "pi2" ? "pi²" : z.unite === "m2" ? "m²" : "",
     })),
     zones_total_m2: fmt(sommeSuperficieZonesM2(snapshot.zones)),
+    // Phase 10 : distribution électrique descriptive + compteur d'entrées dérivé des lignes.
+    // `?? []` : rétrocompat des snapshots gelés AVANT la Phase 10 (sans champ distribution).
+    distribution: (snapshot.distribution ?? []).map((d) => ({
+      amperes: fmt(d.amperes),
+      tension: fmt(d.tension),
+    })),
+    distribution_nb_entrees: (snapshot.distribution ?? []).length,
     description_installations: snapshot.textes.description_installations ?? "",
     mesures_mise_en_forme: snapshot.textes.mesures_mise_en_forme ?? "",
     problemes_techniques: snapshot.textes.problemes_techniques ?? "",
