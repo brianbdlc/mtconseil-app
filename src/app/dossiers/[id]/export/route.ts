@@ -7,14 +7,17 @@ import { createClient } from "@/lib/supabase/server";
 import type { Snapshot } from "@/lib/rapport";
 import { donneesRender } from "@/lib/rapport-render";
 
-// ponytail: export docx SYNCHRONE + dépôt Storage + versionnage (Phase 5, US-48) — c'est la
-// solution retenue (pas de Trigger.dev, décision validée). Rendu DEPUIS le snapshot gelé, jamais
-// du calcul vivant. SWAP MODÈLE (Phase 7) → remplacer src/templates/rapport-provisoire.docx par
-// le vrai modèle Word de Luis (mêmes placeholders), cf. scripts/build-template.mjs.
+// ponytail: export SYNCHRONE + dépôt Storage + versionnage (Phase 5, US-48). Rendu DEPUIS le
+// snapshot gelé, jamais du calcul vivant. SWAP MODÈLE (Phase 7) → remplacer
+// src/templates/rapport-provisoire.docx par le vrai modèle Word de Luis (mêmes placeholders).
 // ponytail: template lu depuis le filesystem (process.cwd) — vérifier outputFileTracingIncludes au
 // 1er déploiement Vercel.
+// ponytail: Option B (Phase 12) tranchée — le livrable devient un PDF : le .docx est converti via
+// Gotenberg auto-hébergé ca-central (Loi 25 : données au Canada), puis l'annexe Optima est
+// fusionnée TELLE QUELLE (pdfengines/merge, aucun re-rendu). Gotenberg = 1 service à maintenir,
+// prix assumé d'Option B ; upgrade path si trop lourd : API managée dédiée.
 
-const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const PDF_MIME = "application/pdf";
 
 function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
   const templatePath = path.join(process.cwd(), "src/templates/rapport-provisoire.docx");
@@ -24,12 +27,54 @@ function rendreDocx(snapshot: Snapshot, statut: string): Buffer {
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
-function reponseDocx(buf: Uint8Array, client: string): Response {
+type DbClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Rendu du livrable PDF (Option B) : docx gelé → PDF via Gotenberg, puis fusion de l'annexe Optima
+ * telle quelle. Lève une Error avec `.gotenberg` pour que l'appelant renvoie 502/503.
+ */
+async function rendrePdf(snapshot: Snapshot, statut: string, supabase: DbClient): Promise<Buffer> {
+  const base = process.env.GOTENBERG_URL;
+  if (!base) throw Object.assign(new Error("GOTENBERG_URL absent"), { gotenberg: "config" as const });
+
+  const bufDocx = rendreDocx(snapshot, statut);
+
+  // 1. Conversion docx → PDF (LibreOffice).
+  const convForm = new FormData();
+  convForm.append("files", new Blob([new Uint8Array(bufDocx)]), "rapport.docx");
+  const conv = await fetch(`${base}/forms/libreoffice/convert`, { method: "POST", body: convForm });
+  if (!conv.ok) {
+    throw Object.assign(new Error(`Gotenberg convert ${conv.status}: ${await conv.text()}`), { gotenberg: "http" as const });
+  }
+  let bufPdf = Buffer.from(await conv.arrayBuffer());
+
+  // 2. Annexe : fusionner le PDF Optima TEL QUEL (sans Optima dans le snapshot → on saute).
+  // Gotenberg fusionne par ordre ALPHABÉTIQUE des noms → préfixes 01_/02_ pour l'ordre voulu.
+  if (snapshot.optima?.path) {
+    const { data: blob, error } = await supabase.storage.from("optima").download(snapshot.optima.path);
+    if (error || !blob) {
+      throw Object.assign(new Error("Annexe Optima introuvable dans le Storage."), { gotenberg: "http" as const });
+    }
+    const optimaBytes = new Uint8Array(await blob.arrayBuffer());
+    const mergeForm = new FormData();
+    mergeForm.append("files", new Blob([new Uint8Array(bufPdf)]), "01_rapport.pdf");
+    mergeForm.append("files", new Blob([optimaBytes]), "02_optima.pdf");
+    const merge = await fetch(`${base}/forms/pdfengines/merge`, { method: "POST", body: mergeForm });
+    if (!merge.ok) {
+      throw Object.assign(new Error(`Gotenberg merge ${merge.status}: ${await merge.text()}`), { gotenberg: "http" as const });
+    }
+    bufPdf = Buffer.from(await merge.arrayBuffer());
+  }
+
+  return bufPdf;
+}
+
+function reponsePdf(buf: Uint8Array, client: string): Response {
   const safe = client.replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60);
   return new Response(buf as BodyInit, {
     headers: {
-      "Content-Type": DOCX_MIME,
-      "Content-Disposition": `attachment; filename="rapport-${safe}.docx"`,
+      "Content-Type": PDF_MIME,
+      "Content-Disposition": `attachment; filename="rapport-${safe}.pdf"`,
     },
   });
 }
@@ -71,20 +116,30 @@ export async function GET(
     if (!derniere) return new Response("Version introuvable", { status: 404 });
     const { data: blob, error } = await supabase.storage.from("rapports").download(derniere.storage_path);
     if (error || !blob) return new Response("Fichier introuvable", { status: 404 });
-    return reponseDocx(new Uint8Array(await blob.arrayBuffer()), dossier.client);
+    return reponsePdf(new Uint8Array(await blob.arrayBuffer()), dossier.client);
   }
 
   // Approuvé : rendre depuis le snapshot gelé, déposer, versionner (sinon rollback du fichier).
   const snapshot = dossier.rapport_snapshot as Snapshot | null;
   if (!snapshot) return new Response("Aucun instantané à exporter.", { status: 409 });
 
-  const buf = rendreDocx(snapshot, dossier.statut);
+  let buf: Buffer;
+  try {
+    buf = await rendrePdf(snapshot, dossier.statut, supabase);
+  } catch (e) {
+    const kind = (e as { gotenberg?: string }).gotenberg;
+    if (kind === "config") {
+      return new Response("Conversion PDF non configurée (GOTENBERG_URL).", { status: 503 });
+    }
+    return new Response(`Échec de la conversion PDF : ${(e as Error).message}`, { status: 502 });
+  }
+
   const sha256 = createHash("sha256").update(buf).digest("hex");
-  const storagePath = `${id}/${crypto.randomUUID()}.docx`;
+  const storagePath = `${id}/${crypto.randomUUID()}.pdf`;
 
   const { error: eUp } = await supabase.storage
     .from("rapports")
-    .upload(storagePath, buf, { contentType: DOCX_MIME });
+    .upload(storagePath, buf, { contentType: PDF_MIME });
   if (eUp) return new Response(`Échec du dépôt : ${eUp.message}`, { status: 500 });
 
   const { error: eRpc } = await supabase.rpc("enregistrer_export", {
@@ -98,5 +153,5 @@ export async function GET(
     return new Response(`Échec de l'enregistrement : ${eRpc.message}`, { status: 500 });
   }
 
-  return reponseDocx(new Uint8Array(buf), dossier.client);
+  return reponsePdf(new Uint8Array(buf), dossier.client);
 }

@@ -60,6 +60,7 @@ export function construireSnapshot(
     zones?: Zone[]; // Phase 9 : descriptif, hors calcul
     distribution?: DistributionEntree[]; // Phase 10 : descriptif, hors calcul
     revisions?: Revision[]; // Phase 11 : descriptif, hors calcul
+    optima?: { path: string; sha256: string }; // Phase 12 : annexe PDF figée telle quelle, hors calcul
   },
 ) {
   const bilan = bilanEnergetique(equipements.map((e) => ligneEquipement(e)) as LigneBilan[]);
@@ -125,6 +126,9 @@ export function construireSnapshot(
       risques_sse: parametres.modele.risques_sse,
     },
     modele_version: parametres.modele.version,
+    // Phase 12 : annexe Optima figée telle quelle (hors calcul). `?? null` : rétrocompat des
+    // snapshots gelés AVANT la Phase 12. Fusionnée au PDF final à l'export (route export).
+    optima: parametres.optima ?? null,
   };
 }
 

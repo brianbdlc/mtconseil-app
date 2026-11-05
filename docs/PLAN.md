@@ -303,11 +303,11 @@ Un `.docx` ne peut pas embarquer des pages PDF. Deux options, à trancher avec L
 
 ### Critères d'acceptation
 
-- [ ] Migration **additive** : bucket privé `optima` + colonnes sur `dossiers` (`optima_path`, `optima_confirme`, `optima_sha256`) ; RLS + **journal**.
-- [ ] Upload d'**un** PDF Optima ; **aucun appel IA**, aucune extraction, aucun recalcul.
-- [ ] Statut « en attente » → bouton **Confirmer** (même patron que factures/équipements) ; confirmation tracée.
-- [ ] L'assembleur (Phase 4) signale un PDF Optima **non confirmé** comme donnée manquante bloquant la soumission.
-- [ ] Option A ou B **tranchée et documentée** ; le PDF est inséré en annexe à la fin du rapport selon l'option retenue.
+- [x] Migration **additive** : bucket privé `optima` + colonnes sur `dossiers` (`optima_path`, `optima_confirme`, `optima_sha256`) ; RLS + **journal**. *(appliquée sur DEV ; colonnes + bucket privé + 4 policies vérifiés ; journal : un UPDATE `optima_confirme` écrit une ligne `audit_log` old=false/new=true.)*
+- [x] Upload d'**un** PDF Optima ; **aucun appel IA**, aucune extraction, aucun recalcul. *(section `optima-section.tsx` : 1 seul `optima.pdf` en upsert ; `enregistrerOptima`/`confirmerOptima` ne font aucun appel Anthropic/extraction.)*
+- [x] Statut « en attente » → bouton **Confirmer** (même patron que factures/équipements) ; confirmation tracée. *(StatusChip valide/non_valide + Confirmer, miroir `FactureCard` ; trace `audit_log` démontrée.)*
+- [x] L'assembleur (Phase 4) signale un PDF Optima **non confirmé** comme donnée manquante bloquant la soumission. *(flag `optimaNonConfirme` dans `bloquant` ; test `assembleur.test.ts` règle 4 ; ligne « Rapport Optima non confirmé » sur la page rapport.)*
+- [x] Option A ou B **tranchée et documentée** ; le PDF est inséré en annexe à la fin du rapport selon l'option retenue. *(**Option B** retenue ; E2E contre un vrai Gotenberg 8 : template réel docx→PDF puis fusion `01_rapport`/`02_optima` → PDF final = rapport + annexe en fin, pages préservées.)*
 
 ## Bloquée par
 

@@ -30,7 +30,7 @@ function eqComplet(over: Partial<EquipementAssembleur> = {}): EquipementAssemble
   };
 }
 
-const dossierOk = { superficie_valeur: 100, superficie_unite: "m2" };
+const dossierOk = { superficie_valeur: 100, superficie_unite: "m2", optima_confirme: true };
 
 test("controleCompletude : cas complet => non bloquant, 0 problème, 1 manuel", () => {
   const r = controleCompletude([eqComplet()], dossierOk);
@@ -73,10 +73,21 @@ test("règle 2 : conso non calculable précise l'entrée manquante", () => {
 });
 
 test("règle 3 : superficie absente => bloquant", () => {
-  const r = controleCompletude([eqComplet()], { superficie_valeur: null, superficie_unite: null });
+  const r = controleCompletude([eqComplet()], { superficie_valeur: null, superficie_unite: null, optima_confirme: true });
   assert.equal(r.bloquant, true);
   assert.equal(r.superficieAbsente, true);
   assert.equal(r.problemes.length, 0); // le blocage vient du dossier, pas d'un équipement
+});
+
+test("règle 4 (Phase 12) : Optima non confirmé => bloquant ; confirmé => non bloquant", () => {
+  const sans = controleCompletude([eqComplet()], { ...dossierOk, optima_confirme: false });
+  assert.equal(sans.optimaNonConfirme, true);
+  assert.equal(sans.bloquant, true);
+  assert.equal(sans.problemes.length, 0); // blocage dossier, pas équipement
+
+  const avec = controleCompletude([eqComplet()], { ...dossierOk, optima_confirme: true });
+  assert.equal(avec.optimaNonConfirme, false);
+  assert.equal(avec.bloquant, false);
 });
 
 test("avertissements : heures > 8760, facteur > 1, puissance <= 0", () => {
